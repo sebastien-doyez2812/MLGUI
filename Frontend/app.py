@@ -12,10 +12,9 @@ sys.path.append(str(root_dir))
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Projet PyQt Auto-découverte")
+        self.setWindowTitle("OpenMLGUI")
         self.resize(800, 600)
         
-        # --- CORRECTION CRUCIALE POUR QMainWindow ---
         central_widget = QWidget(self)
         self.setCentralWidget(central_widget)
         
@@ -102,7 +101,6 @@ class MainWindow(QMainWindow):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     style_path = Path(__file__).resolve().parent / "style.qss"
-    print(style_path)
     if style_path.exists():
         with open(style_path, "r", encoding="utf-8") as f:
             app.setStyleSheet(f.read())
