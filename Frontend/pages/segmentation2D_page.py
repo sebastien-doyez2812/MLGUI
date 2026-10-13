@@ -1,5 +1,5 @@
-from PyQt6.QtCore import Qt, QModelIndex, QRectF
-from PyQt6.QtGui import QPixmap, QImage
+from PyQt6.QtCore import Qt, QModelIndex, QRectF, QPointF
+from PyQt6.QtGui import QPixmap, QImage, QWheelEvent, QMouseEvent, QPainter
 from PyQt6.QtWidgets import (
     QFrame,
     QGraphicsScene,
@@ -11,7 +11,8 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
     QFileDialog,
-    QSlider
+    QSlider,
+    QMessageBox
 )
 from pathlib import Path
 import os
@@ -56,7 +57,8 @@ class Segmentation2DPage(QWidget):
         self.lum_cursor.setValue(50)
 
         self.image_scene = QGraphicsScene(self)
-        self.image_viewer = QGraphicsView(self.image_scene)
+        
+        self.image_viewer = InteractiveGraphicsView(self.image_scene, self)
         self.image_viewer.setStyleSheet("background-color: #1e1e1e; border: none;")
         self.image_viewer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
@@ -79,6 +81,16 @@ class Segmentation2DPage(QWidget):
             match int(role):
                 case int(LOAD_CURRIMG_ROLE):
                     img_path = self.model.data(self.model.index(0,0), role= LOAD_CURRIMG_ROLE)
+
+                    if img_path is None:
+                        error_box = QMessageBox(self)
+                        error_box.setIcon(QMessageBox.Icon.Critical)
+                        error_box.setWindowTitle("Folder error")
+                        error_box.setText("No image available in the subfolder 'imgs'...")
+                        error_box.setInformativeText("Please select a proper dataset folder with subfolder 'img/' ('labels/' is optional.).")
+                        error_box.setStandardButtons(QMessageBox.StandardButton.Ok)
+                        error_box.exec()
+
                     if img_path: 
                         print(img_path)
                         self.image_scene.clear()
@@ -86,11 +98,11 @@ class Segmentation2DPage(QWidget):
                         self.image_scene.addPixmap(pixmap)
                         self.image_viewer.setSceneRect(QRectF(pixmap.rect()))
 
-                case int(NEXT_IMG_ROLE):
-                    img_path = self.model.data(self.model.index(0,0), role= LOAD_CURRIMG_ROLE)
+                # case int(NEXT_IMG_ROLE):
+                #     img_path = self.model.data(self.model.index(0,0), role= LOAD_CURRIMG_ROLE)
 
-                case int(PREVIOUS_IMG_ROLE):
-                    img_path = self.model.data(self.model.index(0,0), role= LOAD_CURRIMG_ROLE)
+                # case int(PREVIOUS_IMG_ROLE):
+                #     img_path = self.model.data(self.model.index(0,0), role= LOAD_CURRIMG_ROLE)
 
                 case _:
                     return
@@ -135,14 +147,75 @@ class Segmentation2DPage(QWidget):
         dir_path = QFileDialog.getExistingDirectory(self, "Open Folder")
         if dir_path:
             img_path = os.path.join(dir_path, "imgs")
-            labels_path = os.path.join(dir_path, "labels")
 
-            if os.path.exists(img_path) and os.path.exists(labels_path):
+            if not os.path.exists(img_path) :
+                error_box = QMessageBox(self)
+                error_box.setIcon(QMessageBox.Icon.Critical)
+                error_box.setWindowTitle("Folder error")
+                error_box.setText("The folder you selected doesn't coontain a subfolder 'imgs'...")
+                error_box.setInformativeText("Please select a proper dataset folder with subfolder 'img/' ('labels/' is optional.).")
+                error_box.setStandardButtons(QMessageBox.StandardButton.Ok)
+                error_box.exec()
+            
+            else:
+                labels_path = os.path.join(dir_path, "labels")
+
+                if not os.path.exists(labels_path):
+                    os.makedirs(labels_path, exist_ok=True)
+            
                 if self.model is not None:
                     self.model.setData(
                         self.model.index(0, 0), 
                         dir_path, 
                         int(LOAD_DATA_ROLE)
                     )
-            else:
-                print(f"{img_path} or {labels_path} not ok")
+            
+
+class InteractiveGraphicsView(QGraphicsView):
+    def __init__(self, scene, parent=None):
+        super().__init__(scene, parent)
+        self.setRenderHint(QPainter.RenderHint.Antialiasing)
+        self.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+        self._is_dragging = False
+        self._drag_start_position = QPointF()
+
+    def wheelEvent(self, event: QWheelEvent):
+        zoom_in_factor = 1.15
+        zoom_out_factor = 1.0 / zoom_in_factor
+        if event.angleDelta().y() > 0:
+            factor = zoom_in_factor
+        else:
+            factor = zoom_out_factor
+        self.scale(factor, factor)
+
+    def mousePressEvent(self, event: QMouseEvent):
+        if event.button() == Qt.MouseButton.LeftButton or event.button() == Qt.MouseButton.MiddleButton:
+            self._is_dragging = True
+            self._drag_start_position = event.position()
+            self.setCursor(Qt.CursorShape.ClosedHandCursor)
+            event.accept()
+        else:
+            super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QMouseEvent):
+        if self._is_dragging:
+            delta = event.position() - self._drag_start_position
+            self._drag_start_position = event.position()
+
+            self.horizontalScrollBar().setValue(int(self.horizontalScrollBar().value() - delta.x()))
+            self.verticalScrollBar().setValue(int(self.verticalScrollBar().value() - delta.y()))
+            event.accept()
+        else:
+            super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event: QMouseEvent):
+        if self._is_dragging and (event.button() == Qt.MouseButton.LeftButton or event.button() == Qt.MouseButton.MiddleButton):
+            self._is_dragging = False
+            self.unsetCursor()
+            event.accept()
+        else:
+            super().mouseReleaseEvent(event)
