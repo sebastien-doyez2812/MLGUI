@@ -1,2 +1,4 @@
 PyQt6
+PyOpenGL
+PyOpenGL_accelerate
 openmlcore
