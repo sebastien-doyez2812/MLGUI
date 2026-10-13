@@ -4,8 +4,10 @@ import inspect
 from pathlib import Path
 from PyQt6.QtWidgets import QApplication, QMainWindow, QStackedWidget
 from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QStackedWidget
-current_dir = Path(__file__).resolve().parent
-sys.path.append(str(current_dir))
+
+root_dir = Path(__file__).resolve().parent.parent
+sys.path.append(str(root_dir))
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -23,7 +25,8 @@ class MainWindow(QMainWindow):
         # Nav bar:
         self.nav_layout = QHBoxLayout()
         main_layout.addLayout(self.nav_layout)
-        
+        self.nav_buttons = []
+
         self.stacked_widget = QStackedWidget(self)
         main_layout.addWidget(self.stacked_widget)
         
@@ -61,17 +64,50 @@ class MainWindow(QMainWindow):
             self.stacked_widget.addWidget(page_instance)
             
             btn = QPushButton(page_info["name"])
-            btn.setStyleSheet("padding: 8px 16px; font-weight: bold;")
-            
-            btn.clicked.connect(lambda checked, p=page_instance: self.stacked_widget.setCurrentWidget(p))
+            self.nav_buttons.append(btn)
+            btn.clicked.connect(lambda checked, p=page_instance, b=btn: self.on_nav_button_clicked(p, b))
             
             self.nav_layout.addWidget(btn)
             
         self.nav_layout.addStretch()
+        if self.nav_buttons and self.stacked_widget.count() > 0:
+            self.on_nav_button_clicked(self.stacked_widget.widget(0), self.nav_buttons[0])
 
+    def on_nav_button_clicked(self, page_instance, clicked_button):
+        self.stacked_widget.setCurrentWidget(page_instance)
+        for btn in self.nav_buttons:
+            if btn == clicked_button:
+                btn.setStyleSheet("""
+                    QPushButton {
+                        background-color: #2e7d32;
+                        color: white;
+                        padding: 8px 16px;
+                        font-weight: bold;
+                        border-radius: 4px;
+                    }
+                """)
+            else:
+                btn.setStyleSheet("""
+                    QPushButton {
+                        background-color: #3c3c3c;
+                        color: white;
+                        padding: 8px 16px;
+                        font-weight: bold;
+                        border-radius: 4px;
+                    }
+                    QPushButton:hover {
+                        background-color: #4c4c4c;
+                    }
+                """)
 if __name__ == "__main__":
-  app = QApplication(sys.argv)
-
-  window = MainWindow()
-  window.show()
-  sys.exit(app.exec())
+    app = QApplication(sys.argv)
+    style_path = Path(__file__).resolve().parent / "style.qss"
+    print(style_path)
+    if style_path.exists():
+        with open(style_path, "r", encoding="utf-8") as f:
+            app.setStyleSheet(f.read())
+    else:
+        print(f"Error : No QSS file at {style_path}")
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec())

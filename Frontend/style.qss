@@ -1,0 +1,63 @@
+QWidget {
+    background-color: #2b2b2b;
+    color: #ffffff;
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+}
+
+QPushButton {
+    background-color: #383838;
+    color: #ffffff;
+    border: 1px solid #505050;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-weight: bold;
+}
+
+QPushButton:hover {
+    background-color: #484848;
+    border-color: #606060;
+}
+
+QPushButton:pressed {
+    background-color: #282828;
+}
+
+QLineEdit {
+    background-color: #1e1e1e;
+    color: #ffffff;
+    border: 1px solid #505050;
+    border-radius: 4px;
+    padding: 4px;
+}
+
+QLineEdit:focus {
+    border-color: #007acc; /* Bleu discret au focus (style VS Code) */
+}
+
+/* --- Curseurs adoucis (Gris/Bleu neutre) --- */
+QSlider::groove:horizontal {
+    border: 1px solid #505050;
+    height: 6px;
+    background: #1e1e1e;
+    border-radius: 3px;
+}
+
+QSlider::handle:horizontal {
+    background: #a0a0a0; /* Poignée grise neutre */
+    border: 1px solid #707070;
+    width: 14px;
+    height: 14px;
+    margin: -4px 0;
+    border-radius: 7px;
+}
+
+QSlider::handle:horizontal:hover {
+    background: #ffffff; /* Devient blanc au survol */
+    border-color: #007acc;
+}
+
+QGraphicsView {
+    background-color: #1e1e1e;
+    border: none;
+}

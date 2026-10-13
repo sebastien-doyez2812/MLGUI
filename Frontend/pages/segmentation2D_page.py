@@ -9,110 +9,82 @@ from PyQt6.QtWidgets import (
     QSizePolicy,
     QVBoxLayout,
     QWidget,
+    QFileDialog,
+    QSlider
 )
-
+from pathlib import Path
+from Frontend.Widgets.navigationWidget import NavigationWidget
 
 class Segmentation2DPage(QWidget):
-  name = "Segmentation2D"
-  index_nav_bar = 1
+    name = "Segmentation2D"
+    index_nav_bar = 1
 
-  def __init__(self, model_ref=None):
-    super().__init__()
-    # self.name = name
-    self.model = model_ref  
-    self.init_ui()
+    def __init__(self, model_ref=None):
+        super().__init__()
+        self.model = model_ref  
 
-  def init_ui(self):
-    main_layout = QVBoxLayout(self)
-    main_layout.setContentsMargins(0, 0, 0, 0)
-    main_layout.setSpacing(0)
+        self.main_layout = QHBoxLayout(self)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setSpacing(0)
 
-    top_bar = QFrame()
-    top_bar.setObjectName("TopBar")
-    top_bar.setFixedHeight(60)
-    top_bar.setStyleSheet(
-        "background-color: #2b2b2b; color: white; border-bottom: 1px solid"
-        " #3f3f3f;"
-    )
+        self.menu_container = QFrame()
+        self.menu_container.setFixedWidth(260)
+        self.menu_container.setStyleSheet("background-color: #2b2b2b; border-right: 1px solid #3f3f3f;")
+        
+        self.menu_layout = QVBoxLayout(self.menu_container)
+        self.menu_layout.setContentsMargins(10, 10, 10, 10)
+        self.menu_layout.setSpacing(15)
 
-    top_layout = QHBoxLayout(top_bar)
-    top_layout.setContentsMargins(15, 0, 15, 0)
+        self.open_folder_btn = QPushButton("Open Folder")
+        self.export_btn = QPushButton("Export")
+        self.navigation_widget = NavigationWidget()
 
-    title_label = QLabel("Segmentation 2D")
-    title_label.setStyleSheet("font-size: 16px; font-weight: bold;")
+        for btn in [self.open_folder_btn, self.export_btn]:
+            btn.setStyleSheet("padding: 6px 12px; font-weight: bold;")
 
-    btn_open = QPushButton("Ouvrir Image")
-    btn_save = QPushButton("Sauvegarder")
-    for btn in [btn_open, btn_save]:
-      btn.setStyleSheet(
-          "background-color: #3c3c3c; color: white; border: none; padding:"
-          " 6px 12px; border-radius: 4px;"
-      )
+        self.contrast_label = QLabel("Contrast:")
+        self.contrast_cursor = QSlider(Qt.Orientation.Horizontal)
+        self.contrast_cursor.setRange(0, 100)
+        self.contrast_cursor.setValue(50)
 
-    top_layout.addWidget(title_label)
-    top_layout.addStretch()
-    top_layout.addWidget(btn_open)
-    top_layout.addWidget(btn_save)
+        self.lum_label = QLabel("Luminosity:")
+        self.lum_cursor = QSlider(Qt.Orientation.Horizontal)
+        self.lum_cursor.setRange(0, 100)
+        self.lum_cursor.setValue(50)
 
-    main_layout.addWidget(top_bar)
+        self.image_scene = QGraphicsScene(self)
+        self.image_viewer = QGraphicsView(self.image_scene)
+        self.image_viewer.setStyleSheet("background-color: #1e1e1e; border: none;")
+        self.image_viewer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
-    center_container = QWidget()
-    center_layout = QHBoxLayout(center_container)
-    center_layout.setContentsMargins(0, 0, 0, 0)
-    center_layout.setSpacing(0)
+        placeholder = self.image_scene.addText("No folder loaded")
+        placeholder.setDefaultTextColor(Qt.GlobalColor.gray)
 
-    menu_bar = QFrame()
-    menu_bar.setObjectName("MenuLeft")
-    menu_bar.setFixedWidth(220)
-    menu_bar.setStyleSheet(
-        "background-color: #323232; color: white; border-right: 1px solid"
-        " #3f3f3f;"
-    )
+        self.open_folder_btn.clicked.connect(self.open_folder_dialog)
 
-    menu_layout = QVBoxLayout(menu_bar)
-    menu_layout.setContentsMargins(10, 15, 10, 15)
-    menu_layout.setSpacing(10)
+        self.init_ui()
 
-    menu_title = QLabel("Outils de Segmentation")
-    menu_title.setStyleSheet("font-weight: bold; color: #b0b0b0;")
+    def init_ui(self):
+        open_and_export = QHBoxLayout()
+        open_and_export.addWidget(self.open_folder_btn)
+        open_and_export.addWidget(self.export_btn)
+        self.menu_layout.addLayout(open_and_export)
+        
+        self.menu_layout.addWidget(self.navigation_widget)   
+        controls_layout = QVBoxLayout()
+        controls_layout.addWidget(self.contrast_label)
+        controls_layout.addWidget(self.contrast_cursor)
+        controls_layout.addSpacing(10)
+        controls_layout.addWidget(self.lum_label)
+        controls_layout.addWidget(self.lum_cursor)
+        self.menu_layout.addLayout(controls_layout)
 
-    btn_brush = QPushButton("Pinceau")
-    btn_eraser = QPushButton("Gomme")
-    btn_polygon = QPushButton("Polygone")
-    btn_threshold = QPushButton("Seuillage")
-    btn_AI = QPushButton()
+        self.menu_layout.addStretch()
+        self.main_layout.addWidget(self.menu_container, stretch=0)
 
-    for btn in [btn_brush, btn_eraser, btn_polygon, btn_threshold]:
-      btn.setStyleSheet(
-          "background-color: #3f3f3f; color: white; border: none; padding:"
-          " 8px; border-radius: 4px; text-align: left;"
-      )
-      menu_layout.addWidget(btn)
+        self.main_layout.addWidget(self.image_viewer, stretch=1)
 
-    menu_layout.addStretch()  # Pousse les éléments vers le haut
-
-    center_layout.addWidget(menu_bar)
-
-    # ==========================================
-    # 3. GRANDE ZONE DE GAUCHE/CENTRE (SCÈNE)
-    # ==========================================
-    # Utilisation d'un QGraphicsView / QGraphicsScene, idéal pour afficher
-    # et manipuler des images, zoomer, placer des masques, etc.
-    self.graphics_scene = QGraphicsScene(self)
-    self.graphics_view = QGraphicsView(self.graphics_scene)
-    self.graphics_view.setStyleSheet(
-        "background-color: #1e1e1e; border: none;"
-    )
-    self.graphics_view.setSizePolicy(
-        QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-    )
-
-    # Optionnel : Texte indicatif dans la scène vide
-    placeholder_text = self.graphics_scene.addText(
-        "Glissez ou ouvrez une image pour commencer l'étiquetage"
-    )
-    placeholder_text.setDefaultTextColor(Qt.GlobalColor.gray)
-
-    center_layout.addWidget(self.graphics_view)
-
-    main_layout.addWidget(center_container)
+    def open_folder_dialog(self):
+        dir_path = QFileDialog.getExistingDirectory(self, "Open Folder")
+        if dir_path:
+            print(f"Dossier sélectionné : {dir_path}")
