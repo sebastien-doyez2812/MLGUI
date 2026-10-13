@@ -1,5 +1,6 @@
-import sys
+import sys, os
 import importlib.util
+from model import GUIModel
 import inspect
 from pathlib import Path
 from PyQt6.QtWidgets import QApplication, QMainWindow, QStackedWidget
@@ -7,10 +8,12 @@ from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QHB
 
 root_dir = Path(__file__).resolve().parent.parent
 sys.path.append(str(root_dir))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from Backend.backend import Backend
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, backend, model):
         super().__init__()
         self.setWindowTitle("OpenMLGUI")
         self.resize(800, 600)
@@ -20,6 +23,8 @@ class MainWindow(QMainWindow):
         
         main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(10, 10, 10, 10)
+        self.backend = backend
+        self.model = model
 
         # Nav bar:
         self.nav_layout = QHBoxLayout()
@@ -59,7 +64,7 @@ class MainWindow(QMainWindow):
         pages_list = sorted(pages_list, key=lambda x: x["idx"])
 
         for page_info in pages_list:
-            page_instance = page_info["class"]()
+            page_instance = page_info["class"](self.model)
             self.stacked_widget.addWidget(page_instance)
             
             btn = QPushButton(page_info["name"])
@@ -100,12 +105,15 @@ class MainWindow(QMainWindow):
                 """)
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    backend = Backend()
+    model = GUIModel(backend= backend, parent= app)
+
     style_path = Path(__file__).resolve().parent / "style.qss"
     if style_path.exists():
         with open(style_path, "r", encoding="utf-8") as f:
             app.setStyleSheet(f.read())
     else:
         print(f"Error : No QSS file at {style_path}")
-    window = MainWindow()
+    window = MainWindow(backend=backend, model= model)
     window.show()
     sys.exit(app.exec())
