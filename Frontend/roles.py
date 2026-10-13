@@ -1,0 +1,8 @@
+from PyQt6.QtCore import Qt, QAbstractTableModel, QModelIndex
+
+
+# Custom Roles:
+LOAD_DATA_ROLE    = Qt.ItemDataRole.UserRole + 1
+LOAD_CURRIMG_ROLE = Qt.ItemDataRole.UserRole + 2
+NEXT_IMG_ROLE     = Qt.ItemDataRole.UserRole + 3
+PREVIOUS_IMG_ROLE = Qt.ItemDataRole.UserRole + 4
