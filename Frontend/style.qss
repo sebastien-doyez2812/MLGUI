@@ -73,3 +73,9 @@ QLabel {
     font-size: 11px;
     font-weight: 500;
 }
+
+#SeparatorLine {
+    background-color: rgba(255, 255, 255, 0.08);
+    max-height: 1px;
+    border: none;
+}

@@ -8,7 +8,6 @@ class Backend:
 
 
     def setDatasetPath(self, path: str):
-        print("set")
         self.dataset_path = path
         self.idx_img = 0
         self.img_list = []
@@ -18,7 +17,6 @@ class Backend:
                     self.img_list.append(os.path.join(root, file))
 
     def getDatasetPath(self):
-        print("get")
         return self.dataset_path
 
     def get_current_img_path(self):
