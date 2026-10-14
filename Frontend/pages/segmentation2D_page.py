@@ -1,5 +1,6 @@
 from PyQt6.QtCore import Qt, QModelIndex, QRectF, QPointF
 from PyQt6.QtGui import QPixmap, QImage, QWheelEvent, QMouseEvent, QPainter
+from PIL import Image, ImageEnhance
 from PyQt6.QtWidgets import (
     QFrame,
     QGraphicsScene,
@@ -64,7 +65,8 @@ class Segmentation2DPage(QWidget):
         self.contrast_cursor.setRange(0, 100)
         self.contrast_cursor.setValue(50)
         self.contrast_cursor.valueChanged.connect(lambda v: self.contrast_val_label.setText(str(v)))
-
+        self.contrast_cursor.valueChanged.connect(self.update_image_display)
+        
         self.lum_header_layout = QHBoxLayout()
         self.lum_header_layout.setContentsMargins(0, 0, 0, 0)
 
@@ -80,6 +82,7 @@ class Segmentation2DPage(QWidget):
         self.lum_cursor.setRange(0, 100)
         self.lum_cursor.setValue(50)
         self.lum_cursor.valueChanged.connect(lambda v: self.lum_val_label.setText(str(v)))
+        self.lum_cursor.valueChanged.connect(self.update_image_display)
 
         self.image_scene = QGraphicsScene(self)
         
@@ -167,6 +170,33 @@ class Segmentation2DPage(QWidget):
                 None, 
                 int(PREVIOUS_IMG_ROLE)
             )
+
+    def update_image_display(self):
+        current_img_path = self.model.data(self.model.index(0,0), role= LOAD_CURRIMG_ROLE)
+        if not current_img_path or not os.path.exists(current_img_path):
+            return
+
+        try:
+            pil_img = Image.open(current_img_path).convert("RGBA")
+            
+            lum_val = self.lum_cursor.value()
+            lum_factor = lum_val / 50.0
+            pil_img = ImageEnhance.Brightness(pil_img).enhance(lum_factor)
+
+            contrast_val = self.contrast_cursor.value()
+            contrast_factor = contrast_val / 50.0
+            pil_img = ImageEnhance.Contrast(pil_img).enhance(contrast_factor)
+
+            data = pil_img.tobytes("raw", "RGBA")
+            qimage = QImage(data, pil_img.width, pil_img.height, QImage.Format.Format_RGBA8888)
+            pixmap = QPixmap.fromImage(qimage)
+
+            self.image_scene.clear()
+            self.image_scene.addPixmap(pixmap)
+            self.image_viewer.setSceneRect(QRectF(pixmap.rect()))
+
+        except Exception as e:
+            print(f"Error during the process : {e}")
 
     def open_folder_dialog(self):
         dir_path = QFileDialog.getExistingDirectory(self, "Open Folder")

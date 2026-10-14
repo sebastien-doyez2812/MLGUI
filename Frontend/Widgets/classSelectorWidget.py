@@ -19,7 +19,9 @@ class EditableButton(QPushButton):
 
 
 class ClassSelector(QWidget):
-    def __init__(self, num_bits=1, name_bits=None):
+    bitSelected = pyqtSignal(int)
+
+    def __init__(self, num_bits=8, name_bits=None):
         super().__init__()
         
         if name_bits is None:
@@ -29,26 +31,99 @@ class ClassSelector(QWidget):
 
         self.num_bits = num_bits
         self.name_bits = name_bits
+        self.active_bit_index = 0  
+        self.colors = [
+            "#FF3B30",  
+            "#FF9500",  
+            "#FFCC00",  
+            "#34C759",  
+            "#00C7BE",   
+            "#007AFF",  
+            "#5856D6",  
+            "#AF52DE"    
+        ]
 
         self.main_layout = QVBoxLayout(self)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setSpacing(6)
 
         self.class_buttons = []
         for idx in range(self.num_bits):
             btn = EditableButton(self.name_bits[idx])
             btn.doubleClicked.connect(lambda checked=False, i=idx: self.prompt_rename_bit(i))
+            btn.clicked.connect(lambda checked=False, i=idx: self.set_active_bit(i))
             
             self.class_buttons.append(btn)
             self.main_layout.addWidget(btn)
 
         self.checkbox = QCheckBox()
         self.show_all_label = QLabel("Show All")
+        self.show_all_label.setStyleSheet("background: transparent; color: #aeaeb2;")
+        
+        self.checkbox.stateChanged.connect(self.update_buttons_style)
 
         show_all_layout = QHBoxLayout()
         show_all_layout.addWidget(self.checkbox)
         show_all_layout.addWidget(self.show_all_label)
         show_all_layout.addStretch()
 
+        self.main_layout.addSpacing(6)
         self.main_layout.addLayout(show_all_layout)
+
+        self.update_buttons_style()
+
+    def set_active_bit(self, index):
+        """Définit le bit actif et met à jour l'affichage."""
+        self.num_bits 
+        if 0 <= index < self.num_bits:
+            self.active_bit_index = index
+            self.update_buttons_style()
+            self.bitSelected.emit(index)
+
+    def update_buttons_style(self):
+        show_all = self.checkbox.isChecked()
+
+        for idx, btn in enumerate(self.class_buttons):
+            color = self.colors[idx % len(self.colors)]
+            
+            if show_all:
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background-color: {color};
+                        color: #ffffff;
+                        border: 1px solid rgba(255, 255, 255, 0.2);
+                        border-radius: 6px;
+                        padding: 6px 12px;
+                        font-weight: 600;
+                    }}
+                """)
+            else:
+                if idx == self.active_bit_index:
+                    btn.setStyleSheet(f"""
+                        QPushButton {{
+                            background-color: {color};
+                            color: #ffffff;
+                            border: 2px solid #ffffff;
+                            border-radius: 6px;
+                            padding: 6px 12px;
+                            font-weight: 700;
+                        }}
+                    """)
+                else:
+                    btn.setStyleSheet("""
+                        QPushButton {
+                            background-color: #2c2c2e;
+                            color: #8e8e93;
+                            border: 1px solid rgba(255, 255, 255, 0.05);
+                            border-radius: 6px;
+                            padding: 6px 12px;
+                            font-weight: 500;
+                        }
+                        QPushButton:hover {
+                            background-color: #3a3a3c;
+                            color: #f5f5f7;
+                        }
+                    """)
 
     def prompt_rename_bit(self, index):
         current_name = self.name_bits[index]
