@@ -49,7 +49,6 @@ class Segmentation2DPage(QWidget):
 
         self.bit_selector = ClassSelector(num_bits=8, name_bits=["class0", "class1", "class2", "class3", "class4", "class5", "class6", "class7"])
 
-        # --- Section Contraste ---
         self.contrast_header_layout = QHBoxLayout()
         self.contrast_header_layout.setContentsMargins(0, 0, 0, 0)
 
@@ -66,7 +65,6 @@ class Segmentation2DPage(QWidget):
         self.contrast_cursor.setValue(50)
         self.contrast_cursor.valueChanged.connect(lambda v: self.contrast_val_label.setText(str(v)))
 
-        # --- Section Luminosité ---
         self.lum_header_layout = QHBoxLayout()
         self.lum_header_layout.setContentsMargins(0, 0, 0, 0)
 
