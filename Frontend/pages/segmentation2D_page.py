@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
 from pathlib import Path
 import os
 from Frontend.Widgets.navigationWidget import NavigationWidget
+from Frontend.Widgets.classSelectorWidget import ClassSelector
 from Frontend.roles import *
 
 class Segmentation2DPage(QWidget):
@@ -32,8 +33,8 @@ class Segmentation2DPage(QWidget):
         self.main_layout.setSpacing(0)
 
         self.menu_container = QFrame()
+        self.menu_container.setObjectName("SidebarMenu")
         self.menu_container.setFixedWidth(260)
-        self.menu_container.setStyleSheet("background-color: #2b2b2b; border-right: 1px solid #3f3f3f;")
         
         self.menu_layout = QVBoxLayout(self.menu_container)
         self.menu_layout.setContentsMargins(10, 10, 10, 10)
@@ -46,15 +47,41 @@ class Segmentation2DPage(QWidget):
         for btn in [self.open_folder_btn, self.export_btn]:
             btn.setStyleSheet("padding: 6px 12px; font-weight: bold;")
 
-        self.contrast_label = QLabel("Contrast:")
+        self.bit_selector = ClassSelector(num_bits=8, name_bits=["class0", "class1", "class2", "class3", "class4", "class5", "class6", "class7"])
+
+        # --- Section Contraste ---
+        self.contrast_header_layout = QHBoxLayout()
+        self.contrast_header_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.contrast_label = QLabel("Contrast")
+        self.contrast_val_label = QLabel("50")
+        self.contrast_val_label.setStyleSheet("color: #8e8e93; background: transparent;")
+
+        self.contrast_header_layout.addWidget(self.contrast_label)
+        self.contrast_header_layout.addStretch()
+        self.contrast_header_layout.addWidget(self.contrast_val_label)
+
         self.contrast_cursor = QSlider(Qt.Orientation.Horizontal)
         self.contrast_cursor.setRange(0, 100)
         self.contrast_cursor.setValue(50)
+        self.contrast_cursor.valueChanged.connect(lambda v: self.contrast_val_label.setText(str(v)))
 
-        self.lum_label = QLabel("Luminosity:")
+        # --- Section Luminosité ---
+        self.lum_header_layout = QHBoxLayout()
+        self.lum_header_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.lum_label = QLabel("Luminosity")
+        self.lum_val_label = QLabel("50")
+        self.lum_val_label.setStyleSheet("color: #8e8e93; background: transparent;")
+
+        self.lum_header_layout.addWidget(self.lum_label)
+        self.lum_header_layout.addStretch()
+        self.lum_header_layout.addWidget(self.lum_val_label)
+
         self.lum_cursor = QSlider(Qt.Orientation.Horizontal)
         self.lum_cursor.setRange(0, 100)
         self.lum_cursor.setValue(50)
+        self.lum_cursor.valueChanged.connect(lambda v: self.lum_val_label.setText(str(v)))
 
         self.image_scene = QGraphicsScene(self)
         
@@ -92,17 +119,10 @@ class Segmentation2DPage(QWidget):
                         error_box.exec()
 
                     if img_path: 
-                        print(img_path)
                         self.image_scene.clear()
                         pixmap = QPixmap(str(img_path))
                         self.image_scene.addPixmap(pixmap)
                         self.image_viewer.setSceneRect(QRectF(pixmap.rect()))
-
-                # case int(NEXT_IMG_ROLE):
-                #     img_path = self.model.data(self.model.index(0,0), role= LOAD_CURRIMG_ROLE)
-
-                # case int(PREVIOUS_IMG_ROLE):
-                #     img_path = self.model.data(self.model.index(0,0), role= LOAD_CURRIMG_ROLE)
 
                 case _:
                     return
@@ -114,14 +134,21 @@ class Segmentation2DPage(QWidget):
         self.menu_layout.addLayout(open_and_export)
         
         self.menu_layout.addWidget(self.navigation_widget)   
+        
         controls_layout = QVBoxLayout()
-        controls_layout.addWidget(self.contrast_label)
-        controls_layout.addWidget(self.contrast_cursor)
-        controls_layout.addSpacing(10)
-        controls_layout.addWidget(self.lum_label)
-        controls_layout.addWidget(self.lum_cursor)
-        self.menu_layout.addLayout(controls_layout)
+        controls_layout.setSpacing(8)
+        controls_layout.addWidget(self.bit_selector)
+        controls_layout.addSpacing(15)
 
+        controls_layout.addLayout(self.contrast_header_layout)
+        controls_layout.addWidget(self.contrast_cursor)
+
+        controls_layout.addSpacing(10)
+
+        controls_layout.addLayout(self.lum_header_layout)
+        controls_layout.addWidget(self.lum_cursor)
+
+        self.menu_layout.addLayout(controls_layout)
         self.menu_layout.addStretch()
         self.main_layout.addWidget(self.menu_container, stretch=0)
 
@@ -152,11 +179,10 @@ class Segmentation2DPage(QWidget):
                 error_box = QMessageBox(self)
                 error_box.setIcon(QMessageBox.Icon.Critical)
                 error_box.setWindowTitle("Folder error")
-                error_box.setText("The folder you selected doesn't coontain a subfolder 'imgs'...")
+                error_box.setText("The folder you selected doesn't contain a subfolder 'imgs'...")
                 error_box.setInformativeText("Please select a proper dataset folder with subfolder 'img/' ('labels/' is optional.).")
                 error_box.setStandardButtons(QMessageBox.StandardButton.Ok)
                 error_box.exec()
-            
             else:
                 labels_path = os.path.join(dir_path, "labels")
 
@@ -169,7 +195,6 @@ class Segmentation2DPage(QWidget):
                         dir_path, 
                         int(LOAD_DATA_ROLE)
                     )
-            
 
 class InteractiveGraphicsView(QGraphicsView):
     def __init__(self, scene, parent=None):

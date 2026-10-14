@@ -61,3 +61,16 @@ QGraphicsView {
     background-color: #1e1e1e;
     border: none;
 }
+
+#SidebarMenu {
+    background-color: #1e1e1e;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+QLabel {
+    background-color: transparent;
+    color: #aeaeb2; /* Gris neutre typique d'Apple */
+    border: none;
+    font-size: 11px;
+    font-weight: 500;
+}
