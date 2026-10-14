@@ -288,6 +288,70 @@ class Segmentation2DPage(QWidget):
                 if self.model is not None:
                     self.model.setData(self.model.index(0, 0), dir_path, int(LOAD_DATA_ROLE))
 
+    def erase_on_active_mask(self, p1, p2):
+        if not self.original_pil_img:
+            return
+
+        active_idx = self.bit_selector.active_bit_index
+        if active_idx not in self.masks:
+            return
+
+        w, h = self.original_pil_img.size
+        if not (0 <= p1.x() < w and 0 <= p1.y() < h and 0 <= p2.x() < w and 0 <= p2.y() < h):
+            return
+
+        draw = ImageDraw.Draw(self.masks[active_idx])
+        draw.line([p1.x(), p1.y(), p2.x(), p2.y()], fill=(0, 0, 0, 0), width=self.size_cursor.value(), joint="curve")
+        self.update_image_display()
+
+    def flood_fill_active_mask(self, pos):
+        if not self.original_pil_img:
+            return
+
+        active_idx = self.bit_selector.active_bit_index
+        if active_idx not in self.masks:
+            return
+
+        x, y = int(pos.x()), int(pos.y())
+        w, h = self.original_pil_img.size
+
+        if not (0 <= x <= w and 0 <= y < h):
+            return
+
+        hex_color = self.bit_selector.colors[active_idx % len(self.bit_selector.colors)]
+        qcolor = QColor(hex_color)
+        pil_color = (qcolor.red(), qcolor.green(), qcolor.blue(), 255)
+
+        mask_img = self.masks[active_idx]
+
+        try:
+            ImageDraw.floodfill(mask_img, xy=(x, y), value=pil_color, thresh=40)
+            self.update_image_display()
+        except Exception as e:
+            print(f"Error: {e}")
+
+    def flood_erase_active_mask(self, pos):
+        if not self.original_pil_img:
+            return 
+
+        active_idx = self.bit_selector.active_bit_index
+        if active_idx not in self.masks:
+            return
+
+        x, y = int(pos.x()), int(pos.y())
+        w, h = self.original_pil_img.size
+
+        if not (0 <= x < w and 0 <= y < h):
+            return
+
+        mask_img = self.masks[active_idx]
+
+        try:
+            ImageDraw.floodfill(mask_img, xy=(x, y), value=(0, 0, 0, 0), thresh=40)
+            self.update_image_display()
+
+        except Exception as e:
+            print(f"Error: {e}")
 
 class InteractiveGraphicsView(QGraphicsView):
     def __init__(self, scene, parent=None):
@@ -299,7 +363,8 @@ class InteractiveGraphicsView(QGraphicsView):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         self._is_dragging = False
-        self._is_drawing = False
+        self._is_drawing  = False
+        self._is_erasing  = False
         self._drag_start_position = QPointF()
         self._last_mouse_pos = QPointF()
 
@@ -315,7 +380,8 @@ class InteractiveGraphicsView(QGraphicsView):
             self._drag_start_position = event.position()
             self.setCursor(Qt.CursorShape.ClosedHandCursor)
             event.accept()
-        elif event.button() == Qt.MouseButton.MiddleButton or event.button() == Qt.MouseButton.RightButton:
+
+        elif event.button() == Qt.MouseButton.MiddleButton:
             self._is_dragging = True
             self._drag_start_position = event.position()
             self.setCursor(Qt.CursorShape.ClosedHandCursor)
@@ -325,6 +391,11 @@ class InteractiveGraphicsView(QGraphicsView):
             self._is_drawing = True
             scene_pos = self.mapToScene(event.pos())
             self._last_mouse_pos = scene_pos
+            event.accept()
+
+        elif event.button() == Qt.MouseButton.RightButton:
+            self._is_erasing = True
+            self._last_mouse_pos = self.mapToScene(event.pos())
             event.accept()
         else:
             super().mousePressEvent(event)
@@ -336,6 +407,7 @@ class InteractiveGraphicsView(QGraphicsView):
             self.horizontalScrollBar().setValue(int(self.horizontalScrollBar().value() - delta.x()))
             self.verticalScrollBar().setValue(int(self.verticalScrollBar().value() - delta.y()))
             event.accept()
+
         elif self._is_drawing:
             current_scene_pos = self.mapToScene(event.pos())
             
@@ -345,8 +417,35 @@ class InteractiveGraphicsView(QGraphicsView):
 
             self._last_mouse_pos = current_scene_pos
             event.accept()
+
+        elif self._is_erasing:
+            current_scene_pos = self.mapToScene(event.pos())
+            page = self.parent()
+            if hasattr(page, "erase_on_active_mask"):
+                page.erase_on_active_mask(self._last_mouse_pos, current_scene_pos)
+
+            self._last_mouse_pos = current_scene_pos
+            event.accept()
         else:
             super().mouseMoveEvent(event)
+
+    def mouseDoubleClickEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            scene_pos = self.mapToScene(event.pos())
+            page = self.parent()
+            if hasattr(page, "flood_fill_active_mask"):
+                page.flood_fill_active_mask(scene_pos)
+            event.accept()
+
+        elif event.button() == Qt.MouseButton.RightButton:
+            scene_pos = self.mapToScene(event.pos())
+            page = self.parent()
+            if hasattr(page, "flood_erase_active_mask"):
+                page.flood_erase_active_mask(scene_pos)
+            event.accept()
+            
+        else:
+            super().mouseDoubleClickEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent):
         if self._is_dragging and (event.button() in [Qt.MouseButton.LeftButton, Qt.MouseButton.MiddleButton, Qt.MouseButton.RightButton]):
@@ -356,5 +455,9 @@ class InteractiveGraphicsView(QGraphicsView):
         elif self._is_drawing and event.button() == Qt.MouseButton.LeftButton:
             self._is_drawing = False
             event.accept()
+        elif self._is_erasing and event.button() == Qt.MouseButton.RightButton:
+            self._is_erasing = False
+            event.accept()
+
         else:
             super().mouseReleaseEvent(event)
