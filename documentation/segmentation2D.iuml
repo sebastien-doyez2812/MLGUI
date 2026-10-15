@@ -1,0 +1,37 @@
+@startuml
+autonumber
+actor User
+participant Frontend
+participant Model
+participant Backend
+
+== LOAD FOLDER ==
+User -> Frontend: Wants to load a dataset
+Frontend -> Frontend: open_folder_dialog
+Frontend -> Model: setData(role=LOAD_DATA_ROLE)
+Model -> Backend: setDatasetPath( update dataset_path, and img_list)
+
+== NEXT / PREVIOUS ==
+User -> Frontend : Click Next, Previous, or enter an Index
+Frontend -> Frontend : Segmentation2DPage.next_img() / previous_img()
+
+Frontend -> Model : data(role = GET_INDEX_ROLE)
+Model -> Backend : get_current_index()
+Backend --> Model : return current index
+Model --> Frontend : navigation_widget.set_index()
+
+note over Frontend, Backend
+  The masks are saved when the user presses 
+  next or previous, directly in the folder. 
+  The user can reload the folder.
+end note
+
+Frontend -> Model : save_mask()
+Model -> Backend : save_mask()
+Backend --> Model : OK
+
+Frontend -> Model : setData(role=NEXT_IMG_ROLE)
+Model -> Backend : next_image()
+Backend --> Model : Return new image data
+Model --> Frontend : Update view
+@enduml
