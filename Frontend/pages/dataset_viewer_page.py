@@ -89,15 +89,10 @@ class DatasetViewerPage(QWidget):
       )
       menu_layout.addWidget(btn)
 
-    menu_layout.addStretch()  # Pousse les éléments vers le haut
+    menu_layout.addStretch() 
 
     center_layout.addWidget(menu_bar)
 
-    # ==========================================
-    # 3. GRANDE ZONE DE GAUCHE/CENTRE (SCÈNE)
-    # ==========================================
-    # Utilisation d'un QGraphicsView / QGraphicsScene, idéal pour afficher
-    # et manipuler des images, zoomer, placer des masques, etc.
     self.graphics_scene = QGraphicsScene(self)
     self.graphics_view = QGraphicsView(self.graphics_scene)
     self.graphics_view.setStyleSheet(
@@ -107,7 +102,6 @@ class DatasetViewerPage(QWidget):
         QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
     )
 
-    # Optionnel : Texte indicatif dans la scène vide
     placeholder_text = self.graphics_scene.addText(
         "Glissez ou ouvrez une image pour commencer l'étiquetage"
     )

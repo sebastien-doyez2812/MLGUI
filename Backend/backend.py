@@ -54,7 +54,7 @@ class Backend:
             print(f"[-] error in Backend: {e}")
     
     def save_mask(self, mask):
-        if mask is None:
+        if mask is None or len(self.img_list) == 0:
             print(f"[-] save_mask Error: no mask or path of img given.")
             return False
 
@@ -104,3 +104,6 @@ class Backend:
 
     def enter_index_image(self, index):
         self.idx_img = index
+
+    def get_len_dataset(self):
+        return len(self.img_list)

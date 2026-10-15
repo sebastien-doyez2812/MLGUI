@@ -1,5 +1,5 @@
 from PyQt6.QtCore import Qt, QAbstractTableModel, QModelIndex
-from roles import LOAD_DATA_ROLE, LOAD_CURRIMG_ROLE, NEXT_IMG_ROLE, PREVIOUS_IMG_ROLE, GET_INDEX_ROLE
+from roles import LOAD_DATA_ROLE, LOAD_CURRIMG_ROLE, NEXT_IMG_ROLE, PREVIOUS_IMG_ROLE, GET_INDEX_ROLE, GET_TOT_IMGS
 
 class GUIModel(QAbstractTableModel):
     def __init__(self, backend, parent = None):
@@ -21,6 +21,9 @@ class GUIModel(QAbstractTableModel):
         
         elif (int(role) == int(GET_INDEX_ROLE)):
             return self.backend.get_current_index()
+
+        elif (int(role) == int(GET_TOT_IMGS)):
+            return self.backend.get_len_dataset()
         
         else:
             return

@@ -310,6 +310,8 @@ class Segmentation2DPage(QWidget):
                     os.makedirs(labels_path, exist_ok=True)
                 if self.model is not None:
                     self.model.setData(self.model.index(0, 0), dir_path, int(LOAD_DATA_ROLE))
+                    total_imgs = self.model.data(self.model.index(0, 0), GET_TOT_IMGS)
+                    self.navigation_widget.set_total_images(total=total_imgs)
 
     def erase_on_active_mask(self, p1, p2):
         if not self.original_pil_img:
