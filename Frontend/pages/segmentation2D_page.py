@@ -164,25 +164,13 @@ class Segmentation2DPage(QWidget):
                 pil_gray = Image.fromarray(np_arr).convert("L")
                 w, h = pil_gray.size
                 
-                # Créer un masque vide transparent RGBA
                 colored_mask = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-                
-                # Récupérer la couleur de la classe associée
                 hex_color = self.bit_selector.colors[idx % len(self.bit_selector.colors)]
                 qcolor = QColor(hex_color)
                 pil_color = (qcolor.red(), qcolor.green(), qcolor.blue(), 255)
-                
-                # Peindre en couleur uniquement là où le masque gris a du contenu (> 0)
-                # On utilise pil_gray comme masque pour la fonction paste
                 colored_mask.paste(pil_color, (0, 0), pil_gray)
                 
                 self.masks[idx] = colored_mask
-
-            # for idx, np_arr in raw_masks.items():
-            #     pil_gray = Image.fromarray(np_arr)
-            #     # mask_rbga = Image.new("RGBA", pil_gray.size, (0, 0, 0, 0))
-            #     mask_rgba = pil_gray.convert("RGBA")
-            #     self.masks[idx] = mask_rgba
 
             self.update_image_display()
         except Exception as e:
