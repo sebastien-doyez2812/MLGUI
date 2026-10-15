@@ -32,10 +32,9 @@ QLineEdit {
 }
 
 QLineEdit:focus {
-    border-color: #007acc; /* Bleu discret au focus (style VS Code) */
+    border-color: #007acc; 
 }
 
-/* --- Curseurs adoucis (Gris/Bleu neutre) --- */
 QSlider::groove:horizontal {
     border: 1px solid #505050;
     height: 6px;
@@ -44,7 +43,7 @@ QSlider::groove:horizontal {
 }
 
 QSlider::handle:horizontal {
-    background: #a0a0a0; /* Poignée grise neutre */
+    background: #a0a0a0; 
     border: 1px solid #707070;
     width: 14px;
     height: 14px;
@@ -53,11 +52,30 @@ QSlider::handle:horizontal {
 }
 
 QSlider::handle:horizontal:hover {
-    background: #ffffff; /* Devient blanc au survol */
+    background: #ffffff; 
     border-color: #007acc;
 }
 
 QGraphicsView {
     background-color: #1e1e1e;
+    border: none;
+}
+
+#SidebarMenu {
+    background-color: #1e1e1e;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+QLabel {
+    background-color: transparent;
+    color: #aeaeb2; 
+    border: none;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+#SeparatorLine {
+    background-color: rgba(255, 255, 255, 0.08);
+    max-height: 1px;
     border: none;
 }

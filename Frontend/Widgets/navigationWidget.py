@@ -32,3 +32,6 @@ class NavigationWidget(QWidget):
         self.layout.addWidget(self.previous_button)
         self.layout.addWidget(self.entry_index)
         self.layout.addWidget(self.next_button)
+
+    def set_index(self, value):
+        self.entry_index.setText(str(value))

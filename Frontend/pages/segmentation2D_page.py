@@ -1,9 +1,8 @@
-from PyQt6.QtCore import Qt, QModelIndex, QRectF
-from PyQt6.QtGui import QPixmap, QImage
+from PyQt6.QtCore import Qt, QRectF 
+from PyQt6.QtGui import QPixmap, QImage, QColor
 from PyQt6.QtWidgets import (
     QFrame,
     QGraphicsScene,
-    QGraphicsView,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -11,11 +10,14 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
     QFileDialog,
-    QSlider
+    QSlider,
+    QMessageBox,
 )
-from pathlib import Path
 import os
+from PIL import Image, ImageEnhance, ImageDraw
 from Frontend.Widgets.navigationWidget import NavigationWidget
+from Frontend.Widgets.interactive2DWidget import InteractiveGraphicsView
+from Frontend.Widgets.classSelectorWidget import ClassSelector
 from Frontend.roles import *
 
 class Segmentation2DPage(QWidget):
@@ -25,14 +27,17 @@ class Segmentation2DPage(QWidget):
     def __init__(self, model_ref=None):
         super().__init__()
         self.model = model_ref  
+        self.current_img_path = None  
+        self.original_pil_img = None
+        self.masks = {}  
 
         self.main_layout = QHBoxLayout(self)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)
 
         self.menu_container = QFrame()
+        self.menu_container.setObjectName("SidebarMenu")
         self.menu_container.setFixedWidth(260)
-        self.menu_container.setStyleSheet("background-color: #2b2b2b; border-right: 1px solid #3f3f3f;")
         
         self.menu_layout = QVBoxLayout(self.menu_container)
         self.menu_layout.setContentsMargins(10, 10, 10, 10)
@@ -45,18 +50,68 @@ class Segmentation2DPage(QWidget):
         for btn in [self.open_folder_btn, self.export_btn]:
             btn.setStyleSheet("padding: 6px 12px; font-weight: bold;")
 
-        self.contrast_label = QLabel("Contrast:")
+        self.bit_selector = ClassSelector(num_bits=8, name_bits=["class0", "class1", "class2", "class3", "class4", "class5", "class6", "class7"])
+        
+        self.bit_selector.checkbox.stateChanged.connect(self.update_image_display)
+        for btn in self.bit_selector.class_buttons:
+            btn.clicked.connect(self.update_image_display)
+
+        # size of the pen:
+        self.size_pen_layout = QHBoxLayout()
+        self.size_pen_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.size_label = QLabel("Size of the pen:")
+        self.size_val_label = QLabel("5")
+        self.size_val_label.setStyleSheet("color: #8e8e93; background: transparent;")
+
+        self.size_pen_layout.addWidget(self.size_label)
+        self.size_pen_layout.addStretch()
+        self.size_pen_layout.addWidget(self.size_val_label)
+
+        self.size_cursor = QSlider(Qt.Orientation.Horizontal)
+        self.size_cursor.setRange(2, 25)
+        self.size_cursor.setValue(5)
+        self.size_cursor.valueChanged.connect(lambda v: self.size_val_label.setText(str(v)))
+        
+        # Contrast:
+        self.contrast_header_layout = QHBoxLayout()
+        self.contrast_header_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.contrast_label = QLabel("Contrast")
+        self.contrast_val_label = QLabel("50")
+        self.contrast_val_label.setStyleSheet("color: #8e8e93; background: transparent;")
+
+        self.contrast_header_layout.addWidget(self.contrast_label)
+        self.contrast_header_layout.addStretch()
+        self.contrast_header_layout.addWidget(self.contrast_val_label)
+
         self.contrast_cursor = QSlider(Qt.Orientation.Horizontal)
         self.contrast_cursor.setRange(0, 100)
         self.contrast_cursor.setValue(50)
+        self.contrast_cursor.valueChanged.connect(lambda v: self.contrast_val_label.setText(str(v)))
+        self.contrast_cursor.valueChanged.connect(self.update_image_display)
 
-        self.lum_label = QLabel("Luminosity:")
+        # Luminosity:
+        self.lum_header_layout = QHBoxLayout()
+        self.lum_header_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.lum_label = QLabel("Luminosity")
+        self.lum_val_label = QLabel("50")
+        self.lum_val_label.setStyleSheet("color: #8e8e93; background: transparent;")
+
+        self.lum_header_layout.addWidget(self.lum_label)
+        self.lum_header_layout.addStretch()
+        self.lum_header_layout.addWidget(self.lum_val_label)
+
         self.lum_cursor = QSlider(Qt.Orientation.Horizontal)
         self.lum_cursor.setRange(0, 100)
         self.lum_cursor.setValue(50)
+        self.lum_cursor.valueChanged.connect(lambda v: self.lum_val_label.setText(str(v)))
+        self.lum_cursor.valueChanged.connect(self.update_image_display)
 
         self.image_scene = QGraphicsScene(self)
-        self.image_viewer = QGraphicsView(self.image_scene)
+        
+        self.image_viewer = InteractiveGraphicsView(self.image_scene, self)
         self.image_viewer.setStyleSheet("background-color: #1e1e1e; border: none;")
         self.image_viewer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
@@ -79,21 +134,108 @@ class Segmentation2DPage(QWidget):
             match int(role):
                 case int(LOAD_CURRIMG_ROLE):
                     img_path = self.model.data(self.model.index(0,0), role= LOAD_CURRIMG_ROLE)
+
+                    if img_path is None:
+                        error_box = QMessageBox(self)
+                        error_box.setIcon(QMessageBox.Icon.Critical)
+                        error_box.setWindowTitle("Folder error")
+                        error_box.setText("No image available in the subfolder 'imgs'...")
+                        error_box.setInformativeText("Please select a proper dataset folder with subfolder 'img/' ('labels/' is optional.).")
+                        error_box.setStandardButtons(QMessageBox.StandardButton.Ok)
+                        error_box.exec()
+
                     if img_path: 
-                        print(img_path)
-                        self.image_scene.clear()
-                        pixmap = QPixmap(str(img_path))
-                        self.image_scene.addPixmap(pixmap)
-                        self.image_viewer.setSceneRect(QRectF(pixmap.rect()))
-
-                case int(NEXT_IMG_ROLE):
-                    img_path = self.model.data(self.model.index(0,0), role= LOAD_CURRIMG_ROLE)
-
-                case int(PREVIOUS_IMG_ROLE):
-                    img_path = self.model.data(self.model.index(0,0), role= LOAD_CURRIMG_ROLE)
+                        self.current_img_path = str(img_path)
+                        self.load_image_and_masks()
 
                 case _:
                     return
+
+    def load_image_and_masks(self):
+        if not self.current_img_path or not os.path.exists(self.current_img_path):
+            return
+        try:
+            self.original_pil_img = Image.open(self.current_img_path).convert("RGBA")
+            raw_masks = self.model.load_mask()
+            self.masks = {}
+
+            for idx, np_arr in raw_masks.items():
+                pil_gray = Image.fromarray(np_arr).convert("L")
+                w, h = pil_gray.size
+                
+                colored_mask = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+                hex_color = self.bit_selector.colors[idx % len(self.bit_selector.colors)]
+                qcolor = QColor(hex_color)
+                pil_color = (qcolor.red(), qcolor.green(), qcolor.blue(), 255)
+                colored_mask.paste(pil_color, (0, 0), pil_gray)
+                
+                self.masks[idx] = colored_mask
+
+            self.update_image_display()
+        except Exception as e:
+            print(f"Error during loading: {e}")
+
+    def update_image_display(self):
+        if self.original_pil_img is None:
+            return
+
+        try:
+            working_img = self.original_pil_img.copy()
+
+            lum_factor = self.lum_cursor.value() / 50.0
+            working_img = ImageEnhance.Brightness(working_img).enhance(lum_factor)
+
+            contrast_factor = self.contrast_cursor.value() / 50.0
+            working_img = ImageEnhance.Contrast(working_img).enhance(contrast_factor)
+
+            show_all = self.bit_selector.checkbox.isChecked()
+            active_idx = self.bit_selector.active_bit_index
+            
+            w, h = working_img.size
+            combined_masks_img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+            
+            for idx, mask in self.masks.items():
+                if show_all or idx == active_idx:
+                    alpha_factor = 0.6 
+                    
+                    r, g, b, a = mask.split()
+                    a_adjusted = a.point(lambda p: int(p * alpha_factor) if p > 0 else 0)
+                    semi_transparent_mask = Image.merge("RGBA", (r, g, b, a_adjusted))
+
+                    combined_masks_img = Image.alpha_composite(combined_masks_img, semi_transparent_mask)
+            working_img = Image.alpha_composite(working_img, combined_masks_img)
+
+            data = working_img.tobytes("raw", "RGBA")
+            qimage = QImage(data, working_img.width, working_img.height, QImage.Format.Format_RGBA8888)
+            pixmap = QPixmap.fromImage(qimage)
+
+            self.image_scene.clear()
+            self.image_scene.addPixmap(pixmap)
+            self.image_viewer.setSceneRect(QRectF(pixmap.rect()))
+
+        except Exception as e:
+            print(f"Error during the update: {e}")
+
+    def paint_on_active_mask(self, p1, p2):
+        if not self.original_pil_img:
+            return
+
+        active_idx = self.bit_selector.active_bit_index
+        if active_idx not in self.masks:
+            return
+
+        w, h = self.original_pil_img.size
+        if not (0 <= p1.x() < w and 0 <= p1.y() < h and 0 <= p2.x() < w and 0 <= p2.y() < h):
+            return
+
+        hex_color = self.bit_selector.colors[active_idx % len(self.bit_selector.colors)]
+        qcolor = QColor(hex_color)
+        pil_color = (qcolor.red(), qcolor.green(), qcolor.blue(), 255)
+
+        draw = ImageDraw.Draw(self.masks[active_idx])
+        draw.line([p1.x(), p1.y(), p2.x(), p2.y()], fill=pil_color, width=int(self.size_cursor.value()), joint="curve")
+        
+        self.update_image_display()
 
     def init_ui(self):
         open_and_export = QHBoxLayout()
@@ -102,14 +244,33 @@ class Segmentation2DPage(QWidget):
         self.menu_layout.addLayout(open_and_export)
         
         self.menu_layout.addWidget(self.navigation_widget)   
+        
         controls_layout = QVBoxLayout()
-        controls_layout.addWidget(self.contrast_label)
-        controls_layout.addWidget(self.contrast_cursor)
-        controls_layout.addSpacing(10)
-        controls_layout.addWidget(self.lum_label)
-        controls_layout.addWidget(self.lum_cursor)
-        self.menu_layout.addLayout(controls_layout)
+        controls_layout.setSpacing(8)
+        controls_layout.addWidget(self.bit_selector)
+        controls_layout.addSpacing(15)
 
+        separator = QFrame()
+        separator.setObjectName("SeparatorLine")
+        separator.setFrameShape(QFrame.Shape.HLine)
+        separator.setFrameShadow(QFrame.Shadow.Sunken)
+
+        controls_layout.addLayout(self.size_pen_layout)
+        controls_layout.addWidget(self.size_cursor)
+        
+        controls_layout.addSpacing(5)
+        controls_layout.addWidget(separator)
+        controls_layout.addSpacing(5)
+
+        controls_layout.addLayout(self.contrast_header_layout)
+        controls_layout.addWidget(self.contrast_cursor)
+
+        controls_layout.addSpacing(10)
+
+        controls_layout.addLayout(self.lum_header_layout)
+        controls_layout.addWidget(self.lum_cursor)
+
+        self.menu_layout.addLayout(controls_layout)
         self.menu_layout.addStretch()
         self.main_layout.addWidget(self.menu_container, stretch=0)
 
@@ -117,32 +278,118 @@ class Segmentation2DPage(QWidget):
 
     def next_img(self):
         if self.model is not None:
-            self.model.setData(
-                self.model.index(0, 0), 
-                None, 
-                int(NEXT_IMG_ROLE)
-            )
+            index = self.model.data(self.model.index(0,0), role= GET_INDEX_ROLE)
+            if index is not None:
+                self.navigation_widget.set_index(int(index) + 1)
+            self.model.save_mask(self.masks)
+            self.model.setData(self.model.index(0, 0), None, int(NEXT_IMG_ROLE))
 
     def previous_img(self):
         if self.model is not None:
-            self.model.setData(
-                self.model.index(0, 0), 
-                None, 
-                int(PREVIOUS_IMG_ROLE)
-            )
+            index = self.model.data(self.model.index(0,0), role=GET_INDEX_ROLE )
+            if index is not None:
+                self.navigation_widget.set_index(int(index) - 1)
+            self.model.save_mask(self.masks)
+            self.model.setData(self.model.index(0, 0), None, int(PREVIOUS_IMG_ROLE))
 
     def open_folder_dialog(self):
         dir_path = QFileDialog.getExistingDirectory(self, "Open Folder")
         if dir_path:
             img_path = os.path.join(dir_path, "imgs")
-            labels_path = os.path.join(dir_path, "labels")
-
-            if os.path.exists(img_path) and os.path.exists(labels_path):
-                if self.model is not None:
-                    self.model.setData(
-                        self.model.index(0, 0), 
-                        dir_path, 
-                        int(LOAD_DATA_ROLE)
-                    )
+            if not os.path.exists(img_path) :
+                error_box = QMessageBox(self)
+                error_box.setIcon(QMessageBox.Icon.Critical)
+                error_box.setWindowTitle("Folder error")
+                error_box.setText("The folder you selected doesn't contain a subfolder 'imgs'...")
+                error_box.setInformativeText("Please select a proper dataset folder with subfolder 'img/' ('labels/' is optional.).")
+                error_box.setStandardButtons(QMessageBox.StandardButton.Ok)
+                error_box.exec()
             else:
-                print(f"{img_path} or {labels_path} not ok")
+                labels_path = os.path.join(dir_path, "labels")
+                if not os.path.exists(labels_path):
+                    os.makedirs(labels_path, exist_ok=True)
+                if self.model is not None:
+                    self.model.setData(self.model.index(0, 0), dir_path, int(LOAD_DATA_ROLE))
+
+    def erase_on_active_mask(self, p1, p2):
+        if not self.original_pil_img:
+            return
+
+        active_idx = self.bit_selector.active_bit_index
+        if active_idx not in self.masks:
+            return
+
+        w, h = self.original_pil_img.size
+        if not (0 <= p1.x() < w and 0 <= p1.y() < h and 0 <= p2.x() < w and 0 <= p2.y() < h):
+            return
+
+        draw = ImageDraw.Draw(self.masks[active_idx])
+        draw.line([p1.x(), p1.y(), p2.x(), p2.y()], fill=(0, 0, 0, 0), width=self.size_cursor.value(), joint="curve")
+        self.update_image_display()
+
+    def flood_fill_active_mask(self, pos):
+        if not self.original_pil_img:
+            return
+
+        active_idx = self.bit_selector.active_bit_index
+        if active_idx not in self.masks:
+            return
+
+        x, y = int(pos.x()), int(pos.y())
+        w, h = self.original_pil_img.size
+
+        if not (0 <= x <= w and 0 <= y < h):
+            return
+
+        hex_color = self.bit_selector.colors[active_idx % len(self.bit_selector.colors)]
+        qcolor = QColor(hex_color)
+        pil_color = (qcolor.red(), qcolor.green(), qcolor.blue(), 255)
+
+        mask_img = self.masks[active_idx]
+
+        try:
+            ImageDraw.floodfill(mask_img, xy=(x, y), value=pil_color, thresh=40)
+            self.update_image_display()
+        except Exception as e:
+            print(f"Error: {e}")
+
+    def flood_erase_active_mask(self, pos):
+        if not self.original_pil_img:
+            return 
+
+        active_idx = self.bit_selector.active_bit_index
+        if active_idx not in self.masks:
+            return
+
+        x, y = int(pos.x()), int(pos.y())
+        w, h = self.original_pil_img.size
+
+        if not (0 <= x < w and 0 <= y < h):
+            return
+
+        mask_img = self.masks[active_idx]
+
+        try:
+            ImageDraw.floodfill(mask_img, xy=(x, y), value=(0, 0, 0, 0), thresh=40)
+            self.update_image_display()
+
+        except Exception as e:
+            print(f"Error: {e}")
+
+    def draw_straight_line_on_active_mask(self, p1, p2):
+        if not self.original_pil_img:
+            return
+
+        active_idx = self.bit_selector.active_bit_index
+        if active_idx not in self.masks:
+            return
+
+        w, h = self.original_pil_img.size
+        hex_color = self.bit_selector.colors[active_idx % len(self.bit_selector.colors)]
+        qcolor = QColor(hex_color)
+        pil_color = (qcolor.red(), qcolor.green(), qcolor.blue(), 255)
+
+        draw = ImageDraw.Draw(self.masks[active_idx])
+        draw.line([p1.x(), p1.y(), p2.x(), p2.y()], fill=pil_color, width=int(self.size_cursor.value()))
+        
+        self.update_image_display()
