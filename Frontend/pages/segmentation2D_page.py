@@ -1,9 +1,8 @@
-from PyQt6.QtCore import Qt, QModelIndex, QRectF, QPointF, QPoint
-from PyQt6.QtGui import QPixmap, QImage, QWheelEvent, QMouseEvent, QPainter, QPen, QColor
+from PyQt6.QtCore import Qt, QRectF 
+from PyQt6.QtGui import QPixmap, QImage, QColor
 from PyQt6.QtWidgets import (
     QFrame,
     QGraphicsScene,
-    QGraphicsView,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -12,12 +11,12 @@ from PyQt6.QtWidgets import (
     QWidget,
     QFileDialog,
     QSlider,
-    QMessageBox
+    QMessageBox,
 )
-from pathlib import Path
 import os
 from PIL import Image, ImageEnhance, ImageDraw
 from Frontend.Widgets.navigationWidget import NavigationWidget
+from Frontend.Widgets.interactive2DWidget import InteractiveGraphicsView
 from Frontend.Widgets.classSelectorWidget import ClassSelector
 from Frontend.roles import *
 
@@ -377,111 +376,20 @@ class Segmentation2DPage(QWidget):
         except Exception as e:
             print(f"Error: {e}")
 
-class InteractiveGraphicsView(QGraphicsView):
-    def __init__(self, scene, parent=None):
-        super().__init__(scene, parent)
-        self.setRenderHint(QPainter.RenderHint.Antialiasing)
-        self.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+    def draw_straight_line_on_active_mask(self, p1, p2):
+        if not self.original_pil_img:
+            return
 
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        active_idx = self.bit_selector.active_bit_index
+        if active_idx not in self.masks:
+            return
 
-        self._is_dragging = False
-        self._is_drawing  = False
-        self._is_erasing  = False
-        self._drag_start_position = QPointF()
-        self._last_mouse_pos = QPointF()
+        w, h = self.original_pil_img.size
+        hex_color = self.bit_selector.colors[active_idx % len(self.bit_selector.colors)]
+        qcolor = QColor(hex_color)
+        pil_color = (qcolor.red(), qcolor.green(), qcolor.blue(), 255)
 
-    def wheelEvent(self, event: QWheelEvent):
-        zoom_in_factor = 1.15
-        zoom_out_factor = 1.0 / zoom_in_factor
-        factor = zoom_in_factor if event.angleDelta().y() > 0 else zoom_out_factor
-        self.scale(factor, factor)
-
-    def mousePressEvent(self, event: QMouseEvent):
-        if event.button() == Qt.MouseButton.LeftButton and event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
-            self._is_dragging = True
-            self._drag_start_position = event.position()
-            self.setCursor(Qt.CursorShape.ClosedHandCursor)
-            event.accept()
-
-        elif event.button() == Qt.MouseButton.MiddleButton:
-            self._is_dragging = True
-            self._drag_start_position = event.position()
-            self.setCursor(Qt.CursorShape.ClosedHandCursor)
-            event.accept()
-            
-        elif event.button() == Qt.MouseButton.LeftButton:
-            self._is_drawing = True
-            scene_pos = self.mapToScene(event.pos())
-            self._last_mouse_pos = scene_pos
-            event.accept()
-
-        elif event.button() == Qt.MouseButton.RightButton:
-            self._is_erasing = True
-            self._last_mouse_pos = self.mapToScene(event.pos())
-            event.accept()
-        else:
-            super().mousePressEvent(event)
-
-    def mouseMoveEvent(self, event: QMouseEvent):
-        if self._is_dragging:
-            delta = event.position() - self._drag_start_position
-            self._drag_start_position = event.position()
-            self.horizontalScrollBar().setValue(int(self.horizontalScrollBar().value() - delta.x()))
-            self.verticalScrollBar().setValue(int(self.verticalScrollBar().value() - delta.y()))
-            event.accept()
-
-        elif self._is_drawing:
-            current_scene_pos = self.mapToScene(event.pos())
-            
-            page = self.parent()
-            if hasattr(page, "paint_on_active_mask"):
-                page.paint_on_active_mask(self._last_mouse_pos, current_scene_pos)
-
-            self._last_mouse_pos = current_scene_pos
-            event.accept()
-
-        elif self._is_erasing:
-            current_scene_pos = self.mapToScene(event.pos())
-            page = self.parent()
-            if hasattr(page, "erase_on_active_mask"):
-                page.erase_on_active_mask(self._last_mouse_pos, current_scene_pos)
-
-            self._last_mouse_pos = current_scene_pos
-            event.accept()
-        else:
-            super().mouseMoveEvent(event)
-
-    def mouseDoubleClickEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            scene_pos = self.mapToScene(event.pos())
-            page = self.parent()
-            if hasattr(page, "flood_fill_active_mask"):
-                page.flood_fill_active_mask(scene_pos)
-            event.accept()
-
-        elif event.button() == Qt.MouseButton.RightButton:
-            scene_pos = self.mapToScene(event.pos())
-            page = self.parent()
-            if hasattr(page, "flood_erase_active_mask"):
-                page.flood_erase_active_mask(scene_pos)
-            event.accept()
-
-        else:
-            super().mouseDoubleClickEvent(event)
-
-    def mouseReleaseEvent(self, event: QMouseEvent):
-        if self._is_dragging and (event.button() in [Qt.MouseButton.LeftButton, Qt.MouseButton.MiddleButton, Qt.MouseButton.RightButton]):
-            self._is_dragging = False
-            self.unsetCursor()
-            event.accept()
-        elif self._is_drawing and event.button() == Qt.MouseButton.LeftButton:
-            self._is_drawing = False
-            event.accept()
-        elif self._is_erasing and event.button() == Qt.MouseButton.RightButton:
-            self._is_erasing = False
-            event.accept()
-
-        else:
-            super().mouseReleaseEvent(event)
+        draw = ImageDraw.Draw(self.masks[active_idx])
+        draw.line([p1.x(), p1.y(), p2.x(), p2.y()], fill=pil_color, width=int(self.size_cursor.value()))
+        
+        self.update_image_display()

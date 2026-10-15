@@ -80,25 +80,87 @@ class ClassSelector(QWidget):
             self.update_buttons_style()
             self.bitSelected.emit(index)
 
+    # def update_buttons_style(self):
+    #     show_all = self.checkbox.isChecked()
+
+    #     for idx, btn in enumerate(self.class_buttons):
+    #         color = self.colors[idx % len(self.colors)]
+            
+    #         if show_all:
+    #             btn.setStyleSheet(f"""
+    #                 QPushButton {{
+    #                     background-color: {color};
+    #                     color: #ffffff;
+    #                     border: 1px solid rgba(255, 255, 255, 0.2);
+    #                     border-radius: 6px;
+    #                     padding: 6px 12px;
+    #                     font-weight: 600;
+    #                 }}
+    #             """)
+    #         else:
+    #             if idx == self.active_bit_index:
+    #                 btn.setStyleSheet(f"""
+    #                     QPushButton {{
+    #                         background-color: {color};
+    #                         color: #ffffff;
+    #                         border: 2px solid #ffffff;
+    #                         border-radius: 6px;
+    #                         padding: 6px 12px;
+    #                         font-weight: 700;
+    #                     }}
+    #                 """)
+    #             else:
+    #                 btn.setStyleSheet("""
+    #                     QPushButton {
+    #                         background-color: #2c2c2e;
+    #                         color: #8e8e93;
+    #                         border: 1px solid rgba(255, 255, 255, 0.05);
+    #                         border-radius: 6px;
+    #                         padding: 6px 12px;
+    #                         font-weight: 500;
+    #                     }
+    #                     QPushButton:hover {
+    #                         background-color: #3a3a3c;
+    #                         color: #f5f5f7;
+    #                     }
+    #                 """)
+
+
     def update_buttons_style(self):
         show_all = self.checkbox.isChecked()
 
         for idx, btn in enumerate(self.class_buttons):
             color = self.colors[idx % len(self.colors)]
+            is_active = (idx == self.active_bit_index)
             
             if show_all:
-                btn.setStyleSheet(f"""
-                    QPushButton {{
-                        background-color: {color};
-                        color: #ffffff;
-                        border: 1px solid rgba(255, 255, 255, 0.2);
-                        border-radius: 6px;
-                        padding: 6px 12px;
-                        font-weight: 600;
-                    }}
-                """)
+                if is_active:
+                    # Style en mode "Show All" mais POUR LA CLASSE ACTIVE : bordure blanche épaisse et prononcée
+                    btn.setStyleSheet(f"""
+                        QPushButton {{
+                            background-color: {color};
+                            color: #ffffff;
+                            border: 3px solid #ffffff;
+                            border-radius: 6px;
+                            padding: 6px 12px;
+                            font-weight: 800;
+                        }}
+                    """)
+                else:
+                    # Style en mode "Show All" pour les autres classes (couleur pleine, mais bordure discrète)
+                    btn.setStyleSheet(f"""
+                        QPushButton {{
+                            background-color: {color};
+                            color: rgba(255, 255, 255, 0.7);
+                            border: 1px solid rgba(255, 255, 255, 0.2);
+                            border-radius: 6px;
+                            padding: 6px 12px;
+                            font-weight: 500;
+                        }}
+                    """)
             else:
-                if idx == self.active_bit_index:
+                if is_active:
+                    # Style normal quand "Show All" est décoché (classe active)
                     btn.setStyleSheet(f"""
                         QPushButton {{
                             background-color: {color};
@@ -110,6 +172,7 @@ class ClassSelector(QWidget):
                         }}
                     """)
                 else:
+                    # Style normal pour les classes inactives
                     btn.setStyleSheet("""
                         QPushButton {
                             background-color: #2c2c2e;
@@ -124,7 +187,6 @@ class ClassSelector(QWidget):
                             color: #f5f5f7;
                         }
                     """)
-
     def prompt_rename_bit(self, index):
         current_name = self.name_bits[index]
         new_name, ok = QInputDialog.getText(
