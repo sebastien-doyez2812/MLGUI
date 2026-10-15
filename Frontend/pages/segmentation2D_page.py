@@ -57,7 +57,6 @@ class Segmentation2DPage(QWidget):
         for btn in self.bit_selector.class_buttons:
             btn.clicked.connect(self.update_image_display)
 
-
         # size of the pen:
         self.size_pen_layout = QHBoxLayout()
         self.size_pen_layout.setContentsMargins(0, 0, 0, 0)
@@ -158,8 +157,33 @@ class Segmentation2DPage(QWidget):
             return
         try:
             self.original_pil_img = Image.open(self.current_img_path).convert("RGBA")
-            w, h = self.original_pil_img.size
-            self.masks = {i: Image.new("RGBA", (w, h), (0, 0, 0, 0)) for i in range(self.bit_selector.num_bits)}
+            raw_masks = self.model.load_mask()
+            self.masks = {}
+
+            for idx, np_arr in raw_masks.items():
+                pil_gray = Image.fromarray(np_arr).convert("L")
+                w, h = pil_gray.size
+                
+                # Créer un masque vide transparent RGBA
+                colored_mask = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+                
+                # Récupérer la couleur de la classe associée
+                hex_color = self.bit_selector.colors[idx % len(self.bit_selector.colors)]
+                qcolor = QColor(hex_color)
+                pil_color = (qcolor.red(), qcolor.green(), qcolor.blue(), 255)
+                
+                # Peindre en couleur uniquement là où le masque gris a du contenu (> 0)
+                # On utilise pil_gray comme masque pour la fonction paste
+                colored_mask.paste(pil_color, (0, 0), pil_gray)
+                
+                self.masks[idx] = colored_mask
+
+            # for idx, np_arr in raw_masks.items():
+            #     pil_gray = Image.fromarray(np_arr)
+            #     # mask_rbga = Image.new("RGBA", pil_gray.size, (0, 0, 0, 0))
+            #     mask_rgba = pil_gray.convert("RGBA")
+            #     self.masks[idx] = mask_rgba
+
             self.update_image_display()
         except Exception as e:
             print(f"Error during loading: {e}")
@@ -179,16 +203,20 @@ class Segmentation2DPage(QWidget):
 
             show_all = self.bit_selector.checkbox.isChecked()
             active_idx = self.bit_selector.active_bit_index
-
+            
+            w, h = working_img.size
+            combined_masks_img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+            
             for idx, mask in self.masks.items():
                 if show_all or idx == active_idx:
                     alpha_factor = 0.6 
                     
                     r, g, b, a = mask.split()
-                    a_adjusted = a.point(lambda p: int(p * alpha_factor))
+                    a_adjusted = a.point(lambda p: int(p * alpha_factor) if p > 0 else 0)
                     semi_transparent_mask = Image.merge("RGBA", (r, g, b, a_adjusted))
-                    
-                    working_img = Image.alpha_composite(working_img, semi_transparent_mask)
+
+                    combined_masks_img = Image.alpha_composite(combined_masks_img, semi_transparent_mask)
+            working_img = Image.alpha_composite(working_img, combined_masks_img)
 
             data = working_img.tobytes("raw", "RGBA")
             qimage = QImage(data, working_img.width, working_img.height, QImage.Format.Format_RGBA8888)
@@ -263,10 +291,18 @@ class Segmentation2DPage(QWidget):
 
     def next_img(self):
         if self.model is not None:
+            index = self.model.data(self.model.index(0,0), role= GET_INDEX_ROLE)
+            if index is not None:
+                self.navigation_widget.set_index(int(index) + 1)
+            self.model.save_mask(self.masks)
             self.model.setData(self.model.index(0, 0), None, int(NEXT_IMG_ROLE))
 
     def previous_img(self):
         if self.model is not None:
+            index = self.model.data(self.model.index(0,0), role=GET_INDEX_ROLE )
+            if index is not None:
+                self.navigation_widget.set_index(int(index) - 1)
+            self.model.save_mask(self.masks)
             self.model.setData(self.model.index(0, 0), None, int(PREVIOUS_IMG_ROLE))
 
     def open_folder_dialog(self):
@@ -443,7 +479,7 @@ class InteractiveGraphicsView(QGraphicsView):
             if hasattr(page, "flood_erase_active_mask"):
                 page.flood_erase_active_mask(scene_pos)
             event.accept()
-            
+
         else:
             super().mouseDoubleClickEvent(event)
 

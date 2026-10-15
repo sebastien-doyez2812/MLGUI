@@ -1,16 +1,26 @@
 from PyQt6.QtCore import Qt, QAbstractTableModel, QModelIndex
-from roles import LOAD_DATA_ROLE, LOAD_CURRIMG_ROLE, NEXT_IMG_ROLE, PREVIOUS_IMG_ROLE
+from roles import LOAD_DATA_ROLE, LOAD_CURRIMG_ROLE, NEXT_IMG_ROLE, PREVIOUS_IMG_ROLE, GET_INDEX_ROLE
 
 class GUIModel(QAbstractTableModel):
     def __init__(self, backend, parent = None):
         super().__init__(parent)
         self.backend = backend
 
+    def save_mask(self, mask):
+        self.backend.save_mask(mask)
+
+    def load_mask(self):
+        return self.backend.load_mask()
+
     def data(self, index, role):
         if (int(role) == int(LOAD_DATA_ROLE)):
             return self.backend.getDatasetPath()
+        
         elif (int(role) == int(LOAD_CURRIMG_ROLE)):
             return self.backend.get_current_img_path()
+        
+        elif (int(role) == int(GET_INDEX_ROLE)):
+            return self.backend.get_current_index()
         
         else:
             return
