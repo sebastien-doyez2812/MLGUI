@@ -13,7 +13,7 @@ from Frontend.Widgets.viewer3DWidget import Segmentation3DViewer
 
 class Segmentation3DPage(QWidget):
     name = "Segmentation3D"
-    index_nav_bar = 2
+    index_nav_bar = 3
 
     def __init__(self, model_ref=None):
         super().__init__()

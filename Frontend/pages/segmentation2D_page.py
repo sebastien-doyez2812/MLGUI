@@ -136,25 +136,24 @@ class Segmentation2DPage(QWidget):
 
     def on_model_data_changed(self, top_left, bottom_right, roles ):
         for role in roles:
-            match int(role):
-                case int(LOAD_CURRIMG_ROLE):
-                    img_path = self.model.data(self.model.index(0,0), role= LOAD_CURRIMG_ROLE)
+            if int(role) == int(LOAD_CURRIMG_ROLE):
+                img_path = self.model.data(self.model.index(0,0), role= LOAD_CURRIMG_ROLE)
 
-                    if img_path is None:
-                        error_box = QMessageBox(self)
-                        error_box.setIcon(QMessageBox.Icon.Critical)
-                        error_box.setWindowTitle("Folder error")
-                        error_box.setText("No image available in the subfolder 'imgs'...")
-                        error_box.setInformativeText("Please select a proper dataset folder with subfolder 'img/' ('labels/' is optional.).")
-                        error_box.setStandardButtons(QMessageBox.StandardButton.Ok)
-                        error_box.exec()
+                if img_path is None:
+                    error_box = QMessageBox(self)
+                    error_box.setIcon(QMessageBox.Icon.Critical)
+                    error_box.setWindowTitle("Folder error")
+                    error_box.setText("No image available in the subfolder 'imgs'...")
+                    error_box.setInformativeText("Please select a proper dataset folder with subfolder 'img/' ('labels/' is optional.).")
+                    error_box.setStandardButtons(QMessageBox.StandardButton.Ok)
+                    error_box.exec()
 
-                    if img_path: 
-                        self.current_img_path = str(img_path)
-                        self.load_image_and_masks()
+                if img_path: 
+                    self.current_img_path = str(img_path)
+                    self.load_image_and_masks()
 
-                case _:
-                    return
+            else:
+                return
 
     def load_image_and_masks(self):
         if not self.current_img_path or not os.path.exists(self.current_img_path):

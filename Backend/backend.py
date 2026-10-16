@@ -11,6 +11,7 @@ class Backend:
         self.idx_img = 0
         self.img_list = []
         self.output_augmentation_folder = None
+        self.augmented_dataset_path = None
 
     def setDatasetPath(self, path: str):
         self.dataset_path = path
@@ -23,6 +24,12 @@ class Backend:
 
     def getDatasetPath(self):
         return self.dataset_path
+
+    def get_aug_folder_path(self):
+        return self.augmented_dataset_path
+    
+    def setAugmentedDataset(self, augDatasetpath):
+        self.augmented_dataset_path = augDatasetpath
 
     def load_mask(self, num_bits=8):
         try:

@@ -8,3 +8,4 @@ NEXT_IMG_ROLE     = Qt.ItemDataRole.UserRole + 3
 PREVIOUS_IMG_ROLE = Qt.ItemDataRole.UserRole + 4
 GET_INDEX_ROLE    = Qt.ItemDataRole.UserRole + 5
 GET_TOT_IMGS      = Qt.ItemDataRole.UserRole + 6
+LOAD_AUG_DATASET  = Qt.ItemDataRole.UserRole + 7
