@@ -12,10 +12,12 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QSlider,
     QMessageBox,
+    QDialog
 )
 import os
 from PIL import Image, ImageEnhance, ImageDraw
 from Frontend.Widgets.navigationWidget import NavigationWidget
+from Frontend.Widgets.Export2dDialog import DataAugmentationDialog
 from Frontend.Widgets.interactive2DWidget import InteractiveGraphicsView
 from Frontend.Widgets.classSelectorWidget import ClassSelector
 from Frontend.roles import *
@@ -45,6 +47,7 @@ class Segmentation2DPage(QWidget):
 
         self.open_folder_btn = QPushButton("Open Folder")
         self.export_btn = QPushButton("Export")
+        self.export_btn.clicked.connect(self.open_export_dialog)
         self.navigation_widget = NavigationWidget()
 
         for btn in [self.open_folder_btn, self.export_btn]:
@@ -284,6 +287,11 @@ class Segmentation2DPage(QWidget):
             self.model.save_mask(self.masks)
             self.model.setData(self.model.index(0, 0), None, int(NEXT_IMG_ROLE))
 
+            img_path = self.model.data(self.model.index(0, 0), LOAD_CURRIMG_ROLE)
+            self.navigation_widget.set_img_path(path= img_path)
+
+
+
     def previous_img(self):
         if self.model is not None:
             index = self.model.data(self.model.index(0,0), role=GET_INDEX_ROLE )
@@ -291,6 +299,10 @@ class Segmentation2DPage(QWidget):
                 self.navigation_widget.set_index(int(index) - 1)
             self.model.save_mask(self.masks)
             self.model.setData(self.model.index(0, 0), None, int(PREVIOUS_IMG_ROLE))
+
+            img_path = self.model.data(self.model.index(0, 0), LOAD_CURRIMG_ROLE)
+            self.navigation_widget.set_img_path(path= img_path)
+
 
     def open_folder_dialog(self):
         dir_path = QFileDialog.getExistingDirectory(self, "Open Folder")
@@ -311,7 +323,28 @@ class Segmentation2DPage(QWidget):
                 if self.model is not None:
                     self.model.setData(self.model.index(0, 0), dir_path, int(LOAD_DATA_ROLE))
                     total_imgs = self.model.data(self.model.index(0, 0), GET_TOT_IMGS)
+                    path = self.model.data(self.model.index(0, 0), LOAD_DATA_ROLE)
+                    img_path = self.model.data(self.model.index(0, 0), LOAD_CURRIMG_ROLE)
+                    
                     self.navigation_widget.set_total_images(total=total_imgs)
+                    self.navigation_widget.set_dataset_path(path = path)
+                    self.navigation_widget.set_img_path(path= img_path)
+
+    def open_export_dialog(self):
+        if not self.current_img_path:
+            QMessageBox.warning(self, "Warning", "No dataset or image loaded.")
+            return
+
+        dialog = DataAugmentationDialog(self)
+        
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            settings = dialog.get_settings()
+
+            if dialog.output_dir == None:
+                QMessageBox.warning(self, "Warning", "You need to enter an output folder!")
+            else:
+                self.model.export_dataset(settings, dialog.output_dir)
+                QMessageBox.information(self, "Success", "Export done!")
 
     def erase_on_active_mask(self, p1, p2):
         if not self.original_pil_img:
