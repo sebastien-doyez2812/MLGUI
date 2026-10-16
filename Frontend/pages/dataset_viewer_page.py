@@ -3,6 +3,7 @@ from PyQt6.QtWidgets import (
     QFrame,
     QGridLayout,
     QVBoxLayout,
+    QHBoxLayout,
     QLabel,
     QGraphicsView,
     QSizePolicy,
@@ -35,7 +36,7 @@ class DatasetViewerPage(QWidget):
         self.mainLayout.setContentsMargins(20, 20, 20, 20)
         self.mainLayout.setSpacing(15)
 
-        self.navWidget = NavigationWidget()
+        self.navWidget = NavigationWidget(show_dataset_path= False, show_image_name= False)
         self.navWidget.next_button.clicked.connect(self.next_image)
         self.navWidget.previous_button.clicked.connect(self.prev_image)
 
@@ -60,51 +61,107 @@ class DatasetViewerPage(QWidget):
     def onFolderSelected(self, dataset_path):
         self.model.setData(self.model.index(0, 0), dataset_path, LOAD_AUG_DATASET)
 
+
     def init_ui(self):
-        title = QLabel("Visualization and dataset analysis")
-        title.setStyleSheet("font-weight: bold; font-size: 16px; color: #ffffff;")
+        # Titre principal de la page
+        title = QLabel("Visualization and Dataset Analysis")
+        title.setStyleSheet("font-weight: bold; font-size: 18px; color: #ffffff; margin-bottom: 2px;")
         self.mainLayout.addWidget(title)
 
-        self.mainLayout.addWidget(self.folderExplorer)
+        # --- Barre supérieure compacte ---
+        top_bar_layout = QHBoxLayout()
+        top_bar_layout.setSpacing(15)
+        
+        # Empêcher le folderExplorer de s'étirer à l'infini
+        self.folderExplorer.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
+        top_bar_layout.addWidget(self.folderExplorer)
 
+        top_bar_layout.addStretch() # Pousse la navigation à droite sans l'étirer
+
+        # Empêcher le navWidget de s'étirer
+        self.navWidget.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
+        top_bar_layout.addWidget(self.navWidget)
+        
+        self.mainLayout.addLayout(top_bar_layout)
+
+        # --- Zone de défilement (ScrollArea) pour le contenu ---
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
-        
+        scroll_area.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background-color: transparent;
+            }
+            QScrollBar:vertical {
+                background: #1e1e1e;
+                width: 10px;
+                margin: 0px;
+                border-radius: 5px;
+            }
+            QScrollBar::handle:vertical {
+                background: #3a3a3c;
+                min-height: 20px;
+                border-radius: 5px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #007AFF;
+            }
+        """)
+
         content_widget = QWidget()
         content_widget.setStyleSheet("background: transparent;")
-        grid_layout = QGridLayout(content_widget)
-        grid_layout.setSpacing(15)
-        grid_layout.setContentsMargins(0, 0, 0, 0)
+        
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setSpacing(15)
+        content_layout.setContentsMargins(5, 5, 5, 5)
 
         self.preview_panels = {}
 
-        raw_card = self.create_preview_card("Image Brute (Raw)", min_w=350, min_h=280)
-        grid_layout.addWidget(raw_card["frame"], 0, 0, 2, 2) 
+        # --- BLOC 1 : Vues principales (Raw & Overlay Final) plus compactes en hauteur ---
+        main_views_layout = QHBoxLayout()
+        main_views_layout.setSpacing(15)
+
+        raw_card = self.create_preview_card("Image Brute (Raw)", min_w=300, min_h=220)
+        main_views_layout.addWidget(raw_card["frame"], stretch=1)
         self.preview_panels["raw"] = raw_card
 
-        overlay_card = self.create_preview_card("Overlay Final", min_w=350, min_h=280)
-        grid_layout.addWidget(overlay_card["frame"], 0, 2, 2, 2)
+        overlay_card = self.create_preview_card("Overlay Final", min_w=300, min_h=220)
+        main_views_layout.addWidget(overlay_card["frame"], stretch=1)
         self.preview_panels["overlay"] = overlay_card
 
-        classes_title = QLabel("Mask by Classes (Bits)")
-        classes_title.setStyleSheet("font-weight: bold; font-size: 13px; color: #007AFF; margin-top: 10px;")
-        grid_layout.addWidget(classes_title, 2, 0, 1, 4)
+        content_layout.addLayout(main_views_layout)
 
-        row, col = 3, 0
+        # --- Ligne séparatrice ---
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.HLine)
+        separator.setStyleSheet("background-color: #3a3a3c; max-height: 1px;")
+        content_layout.addWidget(separator)
+
+        # --- BLOC 2 : Masques par classes ---
+        classes_title = QLabel("Masks by Classes (Bits)")
+        classes_title.setStyleSheet("font-weight: bold; font-size: 14px; color: #007AFF;")
+        content_layout.addWidget(classes_title)
+
+        classes_grid = QGridLayout()
+        classes_grid.setSpacing(10)
+        classes_grid.setContentsMargins(0, 0, 0, 0)
+
+        row, col = 0, 0
         for i in range(self.nb_classes):
-            class_card = self.create_preview_card(f"Class {i}", min_w=220, min_h=180)
-            grid_layout.addWidget(class_card["frame"], row, col)
+            class_card = self.create_preview_card(f"Class {i}", min_w=160, min_h=120)
+            classes_grid.addWidget(class_card["frame"], row, col)
             self.preview_panels[f"class_{i}"] = class_card
             
             col += 1
-            if col > 3: 
+            if col > 3:  # 4 colonnes par ligne
                 col = 0
                 row += 1
 
+        content_layout.addLayout(classes_grid)
+
         scroll_area.setWidget(content_widget)
         self.mainLayout.addWidget(scroll_area)
-        self.mainLayout.addWidget(self.navWidget)
-
+    
     def create_preview_card(self, title_text, min_w=200, min_h=150):
         frame = QFrame()
         frame.setStyleSheet("""
