@@ -1,5 +1,5 @@
 from PyQt6.QtCore import Qt, QAbstractTableModel, QModelIndex
-from roles import LOAD_DATA_ROLE, LOAD_CURRIMG_ROLE, NEXT_IMG_ROLE, PREVIOUS_IMG_ROLE, GET_INDEX_ROLE, GET_TOT_IMGS
+from roles import LOAD_DATA_ROLE, LOAD_CURRIMG_ROLE, NEXT_IMG_ROLE, PREVIOUS_IMG_ROLE, GET_INDEX_ROLE, GET_TOT_IMGS, LOAD_AUG_DATASET
 
 class GUIModel(QAbstractTableModel):
     def __init__(self, backend, parent = None):
@@ -29,6 +29,8 @@ class GUIModel(QAbstractTableModel):
         elif (int(role) == int(GET_TOT_IMGS)):
             return self.backend.get_len_dataset()
         
+        elif (int(role) == int(LOAD_AUG_DATASET)):
+            return self.backend.get_aug_folder_path()
         else:
             return
         
@@ -44,6 +46,10 @@ class GUIModel(QAbstractTableModel):
         elif (int(role) == int(PREVIOUS_IMG_ROLE)):
             self.backend.previous_image() 
             self.dataChanged.emit(index, index, [LOAD_CURRIMG_ROLE])
+            return True
+        elif (int(role) == int(LOAD_AUG_DATASET)):
+            self.backend.setAugmentedDataset(value)
+            self.dataChanged.emit(index, index, [LOAD_AUG_DATASET])
             return True
         else:
             return
