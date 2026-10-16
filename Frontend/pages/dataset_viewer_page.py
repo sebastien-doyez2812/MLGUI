@@ -1,112 +1,138 @@
+# from PyQt6.QtCore import Qt
+# from PyQt6.QtWidgets import (
+#     QFrame,
+#     QGraphicsScene,
+#     QGraphicsView,
+#     QHBoxLayout,
+#     QVBoxLayout,
+#     QLabel,
+#     QPushButton,
+#     QSizePolicy,
+#     QWidget,
+# )
+# from Frontend.Widgets.navigationWidget import NavigationWidget
+
+
+# class DatasetViewerPage(QWidget):
+#   name = "Viewer"
+#   index_nav_bar = 2
+
+#   def __init__(self, model_ref=None):
+#     super().__init__()
+    
+#     self.model = model_ref  
+#     self.init_ui()
+
+#     self.mainLayout = QVBoxLayout(self)
+    
+#     self.navWidget = NavigationWidget()
+
+
+
+#   def init_ui(self):
+#     pass
+    
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QFrame,
-    QGraphicsScene,
-    QGraphicsView,
+    QGridLayout,
     QHBoxLayout,
+    QVBoxLayout,
     QLabel,
     QPushButton,
     QSizePolicy,
-    QVBoxLayout,
     QWidget,
 )
+from Frontend.Widgets.navigationWidget import NavigationWidget
 
 
 class DatasetViewerPage(QWidget):
-  name = "Viewer"
-  index_nav_bar = 3
+    name = "Viewer"
+    index_nav_bar = 2
 
-  def __init__(self, model_ref=None):
-    super().__init__()
-    # self.name = name
-    self.model = model_ref  
-    self.init_ui()
+    def __init__(self, model_ref=None):
+        super().__init__()
+        self.model = model_ref  
+        
+        # 1. Initialiser les layouts et widgets principaux d'abord
+        self.mainLayout = QVBoxLayout(self)
+        self.mainLayout.setContentsMargins(20, 20, 20, 20)
+        self.mainLayout.setSpacing(15)
 
-  def init_ui(self):
-    main_layout = QVBoxLayout(self)
-    main_layout.setContentsMargins(0, 0, 0, 0)
-    main_layout.setSpacing(0)
+        self.navWidget = NavigationWidget()
+        
+        # 2. Construire l'interface visuelle
+        self.init_ui()
 
-    top_bar = QFrame()
-    top_bar.setObjectName("TopBar")
-    top_bar.setFixedHeight(60)
-    top_bar.setStyleSheet(
-        "background-color: #2b2b2b; color: white; border-bottom: 1px solid"
-        " #3f3f3f;"
-    )
+    def init_ui(self):
+        # Titre de la page
+        title = QLabel("Analyse et Visualisation du Dataset")
+        title.setStyleSheet("font-weight: bold; font-size: 16px; color: #ffffff;")
+        self.mainLayout.addWidget(title)
 
-    top_layout = QHBoxLayout(top_bar)
-    top_layout.setContentsMargins(15, 0, 15, 0)
+        # Grille pour les 10 emplacements (1 Raw + 8 Classes + 1 Overlay)
+        # On peut organiser ça sur 2 ou 3 colonnes par exemple
+        grid_layout = QGridLayout()
+        grid_layout.setSpacing(10)
 
-    title_label = QLabel("Dataview 2D")
-    title_label.setStyleSheet("font-size: 16px; font-weight: bold;")
+        # Dictionnaire ou liste pour stocker nos labels/conteneurs d'images
+        self.preview_panels = {}
 
-    btn_open = QPushButton("Ouvrir Image")
-    btn_save = QPushButton("Sauvegarder")
-    for btn in [btn_open, btn_save]:
-      btn.setStyleSheet(
-          "background-color: #3c3c3c; color: white; border: none; padding:"
-          " 6px 12px; border-radius: 4px;"
-      )
+        # --- 1. Image Brute (Raw Image) ---
+        raw_card = self.create_preview_card("Image Brute (Raw)")
+        grid_layout.addWidget(raw_card["frame"], 0, 0, 2, 2) # Prend un peu plus de place
+        self.preview_panels["raw"] = raw_card["label"]
 
-    top_layout.addWidget(title_label)
-    top_layout.addStretch()
-    top_layout.addWidget(btn_open)
-    top_layout.addWidget(btn_save)
+        # --- 2. Overlay Final ---
+        overlay_card = self.create_preview_card("Overlay Final")
+        grid_layout.addWidget(overlay_card["frame"], 0, 2, 2, 2)
+        self.preview_panels["overlay"] = overlay_card["label"]
 
-    main_layout.addWidget(top_bar)
+        # --- 3. Les 8 Masques de classes (Class 0 à 7) ---
+        # On les dispose par exemple sur les lignes suivantes
+        row, col = 2, 0
+        for i in range(8):
+            class_card = self.create_preview_card(f"Classe {i}")
+            grid_layout.addWidget(class_card["frame"], row, col)
+            self.preview_panels[f"class_{i}"] = class_card["label"]
+            
+            col += 1
+            if col > 3: # 4 éléments par ligne pour les classes
+                col = 0
+                row += 1
 
-    center_container = QWidget()
-    center_layout = QHBoxLayout(center_container)
-    center_layout.setContentsMargins(0, 0, 0, 0)
-    center_layout.setSpacing(0)
+        self.mainLayout.addLayout(grid_layout)
 
-    menu_bar = QFrame()
-    menu_bar.setObjectName("MenuLeft")
-    menu_bar.setFixedWidth(220)
-    menu_bar.setStyleSheet(
-        "background-color: #323232; color: white; border-right: 1px solid"
-        " #3f3f3f;"
-    )
+        # Ajout du widget de navigation en bas
+        self.mainLayout.addWidget(self.navWidget)
 
-    menu_layout = QVBoxLayout(menu_bar)
-    menu_layout.setContentsMargins(10, 15, 10, 15)
-    menu_layout.setSpacing(10)
+    def create_preview_card(self, title_text):
+        """Helper pour créer un conteneur propre (carte) avec un titre et un cadre pour l'image"""
+        frame = QFrame()
+        frame.setStyleSheet("""
+            QFrame {
+                background-color: #2c2c2e;
+                border: 1px solid #3a3a3c;
+                border-radius: 8px;
+            }
+        """)
+        
+        layout = QVBoxLayout(frame)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(4)
 
-    menu_title = QLabel("Outils de Segmentation")
-    menu_title.setStyleSheet("font-weight: bold; color: #b0b0b0;")
+        title = QLabel(title_text)
+        title.setStyleSheet("color: #8e8e93; font-size: 11px; font-weight: bold; border: none;")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        img_label = QLabel("Aucune image")
+        img_label.setStyleSheet("color: #545456; font-size: 10px; border: none; background: #1e1e1e;")
+        img_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        img_label.setMinimumSize(120, 100)
+        img_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
-    btn_brush = QPushButton("Pinceau")
-    btn_eraser = QPushButton("Gomme")
-    btn_polygon = QPushButton("Polygone")
-    btn_threshold = QPushButton("Seuillage")
-    btn_AI = QPushButton()
+        layout.addWidget(title)
+        layout.addWidget(img_label)
 
-    for btn in [btn_brush, btn_eraser, btn_polygon, btn_threshold]:
-      btn.setStyleSheet(
-          "background-color: #3f3f3f; color: white; border: none; padding:"
-          " 8px; border-radius: 4px; text-align: left;"
-      )
-      menu_layout.addWidget(btn)
-
-    menu_layout.addStretch() 
-
-    center_layout.addWidget(menu_bar)
-
-    self.graphics_scene = QGraphicsScene(self)
-    self.graphics_view = QGraphicsView(self.graphics_scene)
-    self.graphics_view.setStyleSheet(
-        "background-color: #1e1e1e; border: none;"
-    )
-    self.graphics_view.setSizePolicy(
-        QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-    )
-
-    placeholder_text = self.graphics_scene.addText(
-        "Glissez ou ouvrez une image pour commencer l'étiquetage"
-    )
-    placeholder_text.setDefaultTextColor(Qt.GlobalColor.gray)
-
-    center_layout.addWidget(self.graphics_view)
-
-    main_layout.addWidget(center_container)
+        return {"frame": frame, "label": img_label}
