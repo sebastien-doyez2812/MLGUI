@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout, 
     QInputDialog
 )
+import os, json
 
 class EditableButton(QPushButton):
     doubleClicked = pyqtSignal()
@@ -21,9 +22,9 @@ class EditableButton(QPushButton):
 class ClassSelector(QWidget):
     bitSelected = pyqtSignal(int)
 
-    def __init__(self, num_bits=8, name_bits=None):
+    def __init__(self, parent, num_bits=8, name_bits=None):
         super().__init__()
-        
+        self.parent = parent
         if name_bits is None:
             name_bits = [f"class{i}" for i in range(num_bits)]
 
@@ -73,58 +74,16 @@ class ClassSelector(QWidget):
         self.update_buttons_style()
 
     def set_active_bit(self, index):
-        """Définit le bit actif et met à jour l'affichage."""
         self.num_bits 
         if 0 <= index < self.num_bits:
             self.active_bit_index = index
             self.update_buttons_style()
             self.bitSelected.emit(index)
 
-    # def update_buttons_style(self):
-    #     show_all = self.checkbox.isChecked()
-
-    #     for idx, btn in enumerate(self.class_buttons):
-    #         color = self.colors[idx % len(self.colors)]
-            
-    #         if show_all:
-    #             btn.setStyleSheet(f"""
-    #                 QPushButton {{
-    #                     background-color: {color};
-    #                     color: #ffffff;
-    #                     border: 1px solid rgba(255, 255, 255, 0.2);
-    #                     border-radius: 6px;
-    #                     padding: 6px 12px;
-    #                     font-weight: 600;
-    #                 }}
-    #             """)
-    #         else:
-    #             if idx == self.active_bit_index:
-    #                 btn.setStyleSheet(f"""
-    #                     QPushButton {{
-    #                         background-color: {color};
-    #                         color: #ffffff;
-    #                         border: 2px solid #ffffff;
-    #                         border-radius: 6px;
-    #                         padding: 6px 12px;
-    #                         font-weight: 700;
-    #                     }}
-    #                 """)
-    #             else:
-    #                 btn.setStyleSheet("""
-    #                     QPushButton {
-    #                         background-color: #2c2c2e;
-    #                         color: #8e8e93;
-    #                         border: 1px solid rgba(255, 255, 255, 0.05);
-    #                         border-radius: 6px;
-    #                         padding: 6px 12px;
-    #                         font-weight: 500;
-    #                     }
-    #                     QPushButton:hover {
-    #                         background-color: #3a3a3c;
-    #                         color: #f5f5f7;
-    #                     }
-    #                 """)
-
+    def update_buttons_name(self, names = None):
+        assert len(names) == len(self.class_buttons), "Number of names don't match the real number of classes!"
+        for idx, current_btn in enumerate(self.class_buttons):
+            current_btn.setText(names[idx])
 
     def update_buttons_style(self):
         show_all = self.checkbox.isChecked()
@@ -195,6 +154,22 @@ class ClassSelector(QWidget):
             f"New name for '{current_name}' :", 
             text=current_name
         )
+        if os.path.exists(self.parent.config_path):
+            self.name_bits[index] = new_name
+            config_names = {
+                            "class0": self.name_bits[0],
+                            "class1": self.name_bits[1],
+                            "class2": self.name_bits[2],
+                            "class3": self.name_bits[3],
+                            "class4": self.name_bits[4],
+                            "class5": self.name_bits[5],
+                            "class6": self.name_bits[6],
+                            "class7": self.name_bits[7]
+                        }
+            with open(self.parent.config_path, 'w', encoding='utf-8') as f:
+                json.dump(config_names, f, indent=4, ensure_ascii=False)
+        else:
+            print(f"[-] Error in ClassSelector: no config path at {self.parent.config_path}")
         
         if ok and new_name.strip():
             self.rename_bit(index, new_name.strip())

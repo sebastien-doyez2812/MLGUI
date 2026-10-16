@@ -12,10 +12,13 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QSlider,
     QMessageBox,
+    QDialog,
+    QProgressDialog
 )
-import os
+import os, json
 from PIL import Image, ImageEnhance, ImageDraw
 from Frontend.Widgets.navigationWidget import NavigationWidget
+from Frontend.Widgets.Export2dDialog import DataAugmentationDialog
 from Frontend.Widgets.interactive2DWidget import InteractiveGraphicsView
 from Frontend.Widgets.classSelectorWidget import ClassSelector
 from Frontend.roles import *
@@ -29,6 +32,7 @@ class Segmentation2DPage(QWidget):
         self.model = model_ref  
         self.current_img_path = None  
         self.original_pil_img = None
+        self.config_path = None
         self.masks = {}  
 
         self.main_layout = QHBoxLayout(self)
@@ -45,12 +49,13 @@ class Segmentation2DPage(QWidget):
 
         self.open_folder_btn = QPushButton("Open Folder")
         self.export_btn = QPushButton("Export")
+        self.export_btn.clicked.connect(self.open_export_dialog)
         self.navigation_widget = NavigationWidget()
 
         for btn in [self.open_folder_btn, self.export_btn]:
             btn.setStyleSheet("padding: 6px 12px; font-weight: bold;")
 
-        self.bit_selector = ClassSelector(num_bits=8, name_bits=["class0", "class1", "class2", "class3", "class4", "class5", "class6", "class7"])
+        self.bit_selector = ClassSelector(self, num_bits=8, name_bits=["class0", "class1", "class2", "class3", "class4", "class5", "class6", "class7"])
         
         self.bit_selector.checkbox.stateChanged.connect(self.update_image_display)
         for btn in self.bit_selector.class_buttons:
@@ -131,25 +136,24 @@ class Segmentation2DPage(QWidget):
 
     def on_model_data_changed(self, top_left, bottom_right, roles ):
         for role in roles:
-            match int(role):
-                case int(LOAD_CURRIMG_ROLE):
-                    img_path = self.model.data(self.model.index(0,0), role= LOAD_CURRIMG_ROLE)
+            if int(role) == int(LOAD_CURRIMG_ROLE):
+                img_path = self.model.data(self.model.index(0,0), role= LOAD_CURRIMG_ROLE)
 
-                    if img_path is None:
-                        error_box = QMessageBox(self)
-                        error_box.setIcon(QMessageBox.Icon.Critical)
-                        error_box.setWindowTitle("Folder error")
-                        error_box.setText("No image available in the subfolder 'imgs'...")
-                        error_box.setInformativeText("Please select a proper dataset folder with subfolder 'img/' ('labels/' is optional.).")
-                        error_box.setStandardButtons(QMessageBox.StandardButton.Ok)
-                        error_box.exec()
+                if img_path is None:
+                    error_box = QMessageBox(self)
+                    error_box.setIcon(QMessageBox.Icon.Critical)
+                    error_box.setWindowTitle("Folder error")
+                    error_box.setText("No image available in the subfolder 'imgs'...")
+                    error_box.setInformativeText("Please select a proper dataset folder with subfolder 'img/' ('labels/' is optional.).")
+                    error_box.setStandardButtons(QMessageBox.StandardButton.Ok)
+                    error_box.exec()
 
-                    if img_path: 
-                        self.current_img_path = str(img_path)
-                        self.load_image_and_masks()
+                if img_path: 
+                    self.current_img_path = str(img_path)
+                    self.load_image_and_masks()
 
-                case _:
-                    return
+            else:
+                return
 
     def load_image_and_masks(self):
         if not self.current_img_path or not os.path.exists(self.current_img_path):
@@ -279,18 +283,33 @@ class Segmentation2DPage(QWidget):
     def next_img(self):
         if self.model is not None:
             index = self.model.data(self.model.index(0,0), role= GET_INDEX_ROLE)
+            total_img = self.model.data(self.model.index(0,0), role= GET_TOT_IMGS)
             if index is not None:
-                self.navigation_widget.set_index(int(index) + 1)
+                if index + 1 > total_img:
+                    self.navigation_widget.set_index(0)
+                else:    
+                    self.navigation_widget.set_index(int(index) + 1)
             self.model.save_mask(self.masks)
             self.model.setData(self.model.index(0, 0), None, int(NEXT_IMG_ROLE))
+
+            img_path = self.model.data(self.model.index(0, 0), LOAD_CURRIMG_ROLE)
+            self.navigation_widget.set_img_path(path= img_path)
 
     def previous_img(self):
         if self.model is not None:
             index = self.model.data(self.model.index(0,0), role=GET_INDEX_ROLE )
             if index is not None:
-                self.navigation_widget.set_index(int(index) - 1)
+                if index > 0:
+                    self.navigation_widget.set_index(int(index) - 1)
+                else:
+                    self.navigation_widget.set_index(0)
+
             self.model.save_mask(self.masks)
             self.model.setData(self.model.index(0, 0), None, int(PREVIOUS_IMG_ROLE))
+
+            img_path = self.model.data(self.model.index(0, 0), LOAD_CURRIMG_ROLE)
+            self.navigation_widget.set_img_path(path= img_path)
+
 
     def open_folder_dialog(self):
         dir_path = QFileDialog.getExistingDirectory(self, "Open Folder")
@@ -310,6 +329,60 @@ class Segmentation2DPage(QWidget):
                     os.makedirs(labels_path, exist_ok=True)
                 if self.model is not None:
                     self.model.setData(self.model.index(0, 0), dir_path, int(LOAD_DATA_ROLE))
+                    total_imgs = self.model.data(self.model.index(0, 0), GET_TOT_IMGS)
+                    path = self.model.data(self.model.index(0, 0), LOAD_DATA_ROLE)
+                    img_path = self.model.data(self.model.index(0, 0), LOAD_CURRIMG_ROLE)
+                    
+                    self.navigation_widget.set_total_images(total=total_imgs)
+                    self.navigation_widget.set_dataset_path(path = path)
+                    self.navigation_widget.set_img_path(path= img_path)
+
+        self.config_path = os.path.join(dir_path, "config.json")
+        if os.path.exists(self.config_path):
+            with open(self.config_path, 'r', encoding='utf-8') as f:
+                config_data = json.load(f)
+            names_list = list(config_data.values())
+            self.bit_selector.update_buttons_name(names=names_list)
+        else:
+            config_names = {
+                "class0": "class0",
+                "class1": "class1",
+                "class2": "class2",
+                "class3": "class3",
+                "class4": "class4",
+                "class5": "class5",
+                "class6": "class6",
+                "class7": "class7"
+            }
+            with open(self.config_path, 'w', encoding='utf-8') as f:
+                json.dump(config_names, f, indent=4, ensure_ascii=False)
+            
+            names_list = list(config_names.values())
+            self.bit_selector.update_buttons_name(names=names_list)
+
+    def open_export_dialog(self):
+        if not self.current_img_path:
+            QMessageBox.warning(self, "Warning", "No dataset or image loaded.")
+            return
+
+        dialog = DataAugmentationDialog(self)
+        
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            settings = dialog.get_settings()
+
+            if dialog.output_dir == None:
+                QMessageBox.warning(self, "Warning", "You need to enter an output folder!")
+            else:
+                progress = QProgressDialog("Exportation...", None, 0, self.model.data(self.model.index(0, 0), GET_TOT_IMGS), self)
+                progress.setWindowTitle("Dataset exportation")
+                progress.setWindowModality(Qt.WindowModality.WindowModal)
+                progress.setMinimumWidth(320)
+                progress.setValue(0)
+                try:
+                    self.model.export_dataset(settings, dialog.output_dir, progress)
+                    QMessageBox.information(self, "Success", "Export done!")
+                except Exception as e:
+                    QMessageBox.critical(self, "Error during export", e)
 
     def erase_on_active_mask(self, p1, p2):
         if not self.original_pil_img:

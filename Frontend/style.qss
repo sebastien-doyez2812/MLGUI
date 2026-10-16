@@ -74,8 +74,28 @@ QLabel {
     font-weight: 500;
 }
 
+QScrollArea {
+    border: none;
+    background-color: transparent;
+}
+QScrollBar:vertical {
+    background: #1e1e1e;
+    width: 10px;
+    margin: 0px;
+    border-radius: 5px;
+}
+QScrollBar::handle:vertical {
+    background: #3a3a3c;
+    min-height: 20px;
+    border-radius: 5px;
+}
+QScrollBar::handle:vertical:hover {
+    background: #007AFF;
+}
+
 #SeparatorLine {
     background-color: rgba(255, 255, 255, 0.08);
     max-height: 1px;
     border: none;
 }
+
