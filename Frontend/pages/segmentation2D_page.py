@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
     QDialog,
     QProgressDialog
 )
-import os
+import os, json
 from PIL import Image, ImageEnhance, ImageDraw
 from Frontend.Widgets.navigationWidget import NavigationWidget
 from Frontend.Widgets.Export2dDialog import DataAugmentationDialog
@@ -32,6 +32,7 @@ class Segmentation2DPage(QWidget):
         self.model = model_ref  
         self.current_img_path = None  
         self.original_pil_img = None
+        self.config_path = None
         self.masks = {}  
 
         self.main_layout = QHBoxLayout(self)
@@ -54,7 +55,7 @@ class Segmentation2DPage(QWidget):
         for btn in [self.open_folder_btn, self.export_btn]:
             btn.setStyleSheet("padding: 6px 12px; font-weight: bold;")
 
-        self.bit_selector = ClassSelector(num_bits=8, name_bits=["class0", "class1", "class2", "class3", "class4", "class5", "class6", "class7"])
+        self.bit_selector = ClassSelector(self, num_bits=8, name_bits=["class0", "class1", "class2", "class3", "class4", "class5", "class6", "class7"])
         
         self.bit_selector.checkbox.stateChanged.connect(self.update_image_display)
         for btn in self.bit_selector.class_buttons:
@@ -283,21 +284,27 @@ class Segmentation2DPage(QWidget):
     def next_img(self):
         if self.model is not None:
             index = self.model.data(self.model.index(0,0), role= GET_INDEX_ROLE)
+            total_img = self.model.data(self.model.index(0,0), role= GET_TOT_IMGS)
             if index is not None:
-                self.navigation_widget.set_index(int(index) + 1)
+                if index + 1 > total_img:
+                    self.navigation_widget.set_index(0)
+                else:    
+                    self.navigation_widget.set_index(int(index) + 1)
             self.model.save_mask(self.masks)
             self.model.setData(self.model.index(0, 0), None, int(NEXT_IMG_ROLE))
 
             img_path = self.model.data(self.model.index(0, 0), LOAD_CURRIMG_ROLE)
             self.navigation_widget.set_img_path(path= img_path)
 
-
-
     def previous_img(self):
         if self.model is not None:
             index = self.model.data(self.model.index(0,0), role=GET_INDEX_ROLE )
             if index is not None:
-                self.navigation_widget.set_index(int(index) - 1)
+                if index > 0:
+                    self.navigation_widget.set_index(int(index) - 1)
+                else:
+                    self.navigation_widget.set_index(0)
+
             self.model.save_mask(self.masks)
             self.model.setData(self.model.index(0, 0), None, int(PREVIOUS_IMG_ROLE))
 
@@ -330,6 +337,29 @@ class Segmentation2DPage(QWidget):
                     self.navigation_widget.set_total_images(total=total_imgs)
                     self.navigation_widget.set_dataset_path(path = path)
                     self.navigation_widget.set_img_path(path= img_path)
+
+        self.config_path = os.path.join(dir_path, "config.json")
+        if os.path.exists(self.config_path):
+            with open(self.config_path, 'r', encoding='utf-8') as f:
+                config_data = json.load(f)
+            names_list = list(config_data.values())
+            self.bit_selector.update_buttons_name(names=names_list)
+        else:
+            config_names = {
+                "class0": "class0",
+                "class1": "class1",
+                "class2": "class2",
+                "class3": "class3",
+                "class4": "class4",
+                "class5": "class5",
+                "class6": "class6",
+                "class7": "class7"
+            }
+            with open(self.config_path, 'w', encoding='utf-8') as f:
+                json.dump(config_names, f, indent=4, ensure_ascii=False)
+            
+            names_list = list(config_names.values())
+            self.bit_selector.update_buttons_name(names=names_list)
 
     def open_export_dialog(self):
         if not self.current_img_path:

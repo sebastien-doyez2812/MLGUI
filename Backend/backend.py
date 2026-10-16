@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 import albumentations as A
 from PIL import Image
+import shutil
 
 class Backend:
     def __init__(self):
@@ -96,6 +97,8 @@ class Backend:
         if len(self.img_list) == 0:
             return None
         else:
+            if self.idx_img >= len(self.img_list) or self.idx_img < 0:
+                self.idx_img = 0
             return self.img_list[self.idx_img]
 
     def next_image(self):
@@ -164,7 +167,12 @@ class Backend:
             return 
 
         total = len(self.img_list)
-        
+        img_path = self.img_list[0]
+        first_img_Path = Path(img_path)
+        config_src = os.path.join(first_img_Path.parent.parent, "config.json")
+        config_dest = os.path.join(self.output_augmentation_folder, "config.json")
+
+        shutil.copy(config_src, config_dest)
         for idx, path in enumerate(self.img_list):
             currentPath = Path(path)
             labelPath = os.path.join(currentPath.parent.parent, "labels", currentPath.stem + '.png')
