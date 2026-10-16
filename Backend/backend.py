@@ -1,13 +1,15 @@
 import os, cv2
 from pathlib import Path
 import numpy as np
+import albumentations as A
+from PIL import Image
 
 class Backend:
     def __init__(self):
         self.dataset_path = None
         self.idx_img = 0
         self.img_list = []
-
+        self.output_augmentation_folder = None
 
     def setDatasetPath(self, path: str):
         self.dataset_path = path
@@ -54,7 +56,7 @@ class Backend:
             print(f"[-] error in Backend: {e}")
     
     def save_mask(self, mask):
-        if mask is None:
+        if mask is None or len(self.img_list) == 0:
             print(f"[-] save_mask Error: no mask or path of img given.")
             return False
 
@@ -104,3 +106,95 @@ class Backend:
 
     def enter_index_image(self, index):
         self.idx_img = index
+
+    def get_len_dataset(self):
+        return len(self.img_list)
+
+    def exportDataset(self, settings, output_folder, progress = None):
+        print(settings)
+        self.output_augmentation_folder = output_folder
+
+        nb_copy = settings["copies"]
+        transform = []
+
+        for key, value in settings.items():
+            if value == False:
+                continue
+            print(key)
+            if key == "hflip":
+                transform.append(A.HorizontalFlip(p=0.5))
+            elif key == "vflip":
+                transform.append(A.VerticalFlip(p=0.5))
+            elif key == "rotation":
+                transform.append(
+                                A.ShiftScaleRotate(
+                                    shift_limit=0.05, 
+                                    scale_limit=(0.1, 0.3),  
+                                    rotate_limit=90,          
+                                    border_mode=cv2.BORDER_REFLECT_101, 
+                                    mask_value=0,            
+                                    p=0.8
+                                )
+                            )
+            elif key == "elastic":
+                transform.append(A.ElasticTransform(
+                                        alpha=120, 
+                                        sigma=120 * 0.05, 
+                                        alpha_affine=120 * 0.03,
+                                        border_mode=cv2.BORDER_REFLECT_101,
+                                        mask_value=0,
+                                        p=0.5
+                                    )
+                                )
+            elif key == "grid":
+                transform.append(A.GridDistortion(
+                            num_steps=5, 
+                            distort_limit=0.3,
+                            border_mode=cv2.BORDER_REFLECT_101,
+                            mask_value=0,
+                            p=0.5
+                        )
+                    )
+        aug_pipeline = A.Compose(transform)
+        self.augmentData(aug_pipeline, nb_copy, progress)
+
+    def augmentData(self, aug_pipeline, nb_copy, progress):
+        if self.output_augmentation_folder is None:
+            print("[-] Error in Backend.augmentData: output_augmentation_folder is None")
+            return 
+
+        total = len(self.img_list)
+        
+        for idx, path in enumerate(self.img_list):
+            currentPath = Path(path)
+            labelPath = os.path.join(currentPath.parent.parent, "labels", currentPath.stem + '.png')
+            
+            if not os.path.exists(labelPath):
+                continue
+            
+            image_np = np.array(Image.open(currentPath).convert("RGB"))
+            mask_np = np.array(Image.open(labelPath)) 
+
+            os.makedirs(os.path.join(self.output_augmentation_folder, "imgs"), exist_ok=True)
+            os.makedirs(os.path.join(self.output_augmentation_folder, "labels"), exist_ok=True)
+
+            for i in range(nb_copy):
+                augmented = aug_pipeline(image=image_np, mask=mask_np)
+                aug_image = augmented["image"]
+                aug_mask = augmented["mask"]
+                new_filename_img = f"{currentPath.stem}_aug{i+1}{currentPath.suffix}"
+                new_filename_mask = f"{currentPath.stem}_aug{i+1}.png"
+
+                aug_img_path = os.path.join(self.output_augmentation_folder, "imgs", new_filename_img)
+                aug_mask_path = os.path.join(self.output_augmentation_folder, "labels", new_filename_mask)
+
+                Image.fromarray(aug_image).save(aug_img_path)
+                Image.fromarray(aug_mask.astype(np.uint8)).save(aug_mask_path)
+
+            if progress:
+                progress.setValue(idx + 1)
+                progress.setLabelText(f"Traitement : {currentPath.name} ({idx + 1}/{total})")
+
+        if progress:
+            progress.setValue(total)
+
