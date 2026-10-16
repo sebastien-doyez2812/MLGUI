@@ -284,8 +284,12 @@ class Segmentation2DPage(QWidget):
     def next_img(self):
         if self.model is not None:
             index = self.model.data(self.model.index(0,0), role= GET_INDEX_ROLE)
+            total_img = self.model.data(self.model.index(0,0), role= GET_TOT_IMGS)
             if index is not None:
-                self.navigation_widget.set_index(int(index) + 1)
+                if index + 1 > total_img:
+                    self.navigation_widget.set_index(0)
+                else:    
+                    self.navigation_widget.set_index(int(index) + 1)
             self.model.save_mask(self.masks)
             self.model.setData(self.model.index(0, 0), None, int(NEXT_IMG_ROLE))
 
@@ -296,7 +300,11 @@ class Segmentation2DPage(QWidget):
         if self.model is not None:
             index = self.model.data(self.model.index(0,0), role=GET_INDEX_ROLE )
             if index is not None:
-                self.navigation_widget.set_index(int(index) - 1)
+                if index > 0:
+                    self.navigation_widget.set_index(int(index) - 1)
+                else:
+                    self.navigation_widget.set_index(0)
+
             self.model.save_mask(self.masks)
             self.model.setData(self.model.index(0, 0), None, int(PREVIOUS_IMG_ROLE))
 
