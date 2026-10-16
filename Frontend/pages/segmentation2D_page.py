@@ -12,7 +12,8 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QSlider,
     QMessageBox,
-    QDialog
+    QDialog,
+    QProgressDialog
 )
 import os
 from PIL import Image, ImageEnhance, ImageDraw
@@ -343,8 +344,16 @@ class Segmentation2DPage(QWidget):
             if dialog.output_dir == None:
                 QMessageBox.warning(self, "Warning", "You need to enter an output folder!")
             else:
-                self.model.export_dataset(settings, dialog.output_dir)
-                QMessageBox.information(self, "Success", "Export done!")
+                progress = QProgressDialog("Exportation...", None, 0, self.model.data(self.model.index(0, 0), GET_TOT_IMGS), self)
+                progress.setWindowTitle("Dataset exportation")
+                progress.setWindowModality(Qt.WindowModality.WindowModal)
+                progress.setMinimumWidth(320)
+                progress.setValue(0)
+                try:
+                    self.model.export_dataset(settings, dialog.output_dir, progress)
+                    QMessageBox.information(self, "Success", "Export done!")
+                except Exception as e:
+                    QMessageBox.critical(self, "Error during export", e)
 
     def erase_on_active_mask(self, p1, p2):
         if not self.original_pil_img:

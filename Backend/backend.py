@@ -110,7 +110,7 @@ class Backend:
     def get_len_dataset(self):
         return len(self.img_list)
 
-    def exportDataset(self, settings, output_folder):
+    def exportDataset(self, settings, output_folder, progress = None):
         print(settings)
         self.output_augmentation_folder = output_folder
 
@@ -156,14 +156,16 @@ class Backend:
                         )
                     )
         aug_pipeline = A.Compose(transform)
-        self.augmentData(aug_pipeline, nb_copy)
+        self.augmentData(aug_pipeline, nb_copy, progress)
 
-    def augmentData(self, aug_pipeline, nb_copy):
+    def augmentData(self, aug_pipeline, nb_copy, progress):
         if self.output_augmentation_folder is None:
             print("[-] Error in Backend.augmentData: output_augmentation_folder is None")
             return 
+
+        total = len(self.img_list)
         
-        for path in self.img_list:
+        for idx, path in enumerate(self.img_list):
             currentPath = Path(path)
             labelPath = os.path.join(currentPath.parent.parent, "labels", currentPath.stem + '.png')
             
@@ -188,4 +190,11 @@ class Backend:
 
                 Image.fromarray(aug_image).save(aug_img_path)
                 Image.fromarray(aug_mask.astype(np.uint8)).save(aug_mask_path)
+
+            if progress:
+                progress.setValue(idx + 1)
+                progress.setLabelText(f"Traitement : {currentPath.name} ({idx + 1}/{total})")
+
+        if progress:
+            progress.setValue(total)
 

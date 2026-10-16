@@ -12,9 +12,9 @@ class GUIModel(QAbstractTableModel):
     def load_mask(self):
         return self.backend.load_mask()
 
-    def export_dataset(self, settings, output_path):
+    def export_dataset(self, settings, output_path, progress = None):
         print("in model.export_dataset")
-        self.backend.exportDataset(settings, output_path)
+        self.backend.exportDataset(settings, output_path, progress)
 
     def data(self, index, role):
         if (int(role) == int(LOAD_DATA_ROLE)):
