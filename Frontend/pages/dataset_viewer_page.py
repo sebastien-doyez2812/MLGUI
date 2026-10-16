@@ -63,28 +63,23 @@ class DatasetViewerPage(QWidget):
 
 
     def init_ui(self):
-        # Titre principal de la page
         title = QLabel("Visualization and Dataset Analysis")
         title.setStyleSheet("font-weight: bold; font-size: 18px; color: #ffffff; margin-bottom: 2px;")
         self.mainLayout.addWidget(title)
 
-        # --- Barre supérieure compacte ---
         top_bar_layout = QHBoxLayout()
         top_bar_layout.setSpacing(15)
         
-        # Empêcher le folderExplorer de s'étirer à l'infini
         self.folderExplorer.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
         top_bar_layout.addWidget(self.folderExplorer)
 
-        top_bar_layout.addStretch() # Pousse la navigation à droite sans l'étirer
+        top_bar_layout.addStretch() 
 
-        # Empêcher le navWidget de s'étirer
         self.navWidget.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
         top_bar_layout.addWidget(self.navWidget)
         
         self.mainLayout.addLayout(top_bar_layout)
 
-        # --- Zone de défilement (ScrollArea) pour le contenu ---
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setStyleSheet("""
@@ -117,7 +112,6 @@ class DatasetViewerPage(QWidget):
 
         self.preview_panels = {}
 
-        # --- BLOC 1 : Vues principales (Raw & Overlay Final) plus compactes en hauteur ---
         main_views_layout = QHBoxLayout()
         main_views_layout.setSpacing(15)
 
@@ -131,13 +125,11 @@ class DatasetViewerPage(QWidget):
 
         content_layout.addLayout(main_views_layout)
 
-        # --- Ligne séparatrice ---
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.HLine)
         separator.setStyleSheet("background-color: #3a3a3c; max-height: 1px;")
         content_layout.addWidget(separator)
 
-        # --- BLOC 2 : Masques par classes ---
         classes_title = QLabel("Masks by Classes (Bits)")
         classes_title.setStyleSheet("font-weight: bold; font-size: 14px; color: #007AFF;")
         content_layout.addWidget(classes_title)
@@ -153,7 +145,7 @@ class DatasetViewerPage(QWidget):
             self.preview_panels[f"class_{i}"] = class_card
             
             col += 1
-            if col > 3:  # 4 colonnes par ligne
+            if col > 3:  
                 col = 0
                 row += 1
 
