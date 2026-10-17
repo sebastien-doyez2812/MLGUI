@@ -11,8 +11,12 @@ class Backend:
         self.idx_img = 0
         self.img_list = []
         self.output_augmentation_folder = None
-        self.augmented_dataset_path = None
+        
         self.nb_classes = 8 # TODO
+
+        self.augmented_dataset_path = None
+        self.img_dataset_viewer = []
+        self.idx_img_dataset_viewer = 0
 
     def setDatasetPath(self, path: str):
         self.dataset_path = path
@@ -30,8 +34,25 @@ class Backend:
         return self.augmented_dataset_path
     
     def setAugmentedDataset(self, augDatasetpath):
+        self.idx_img_dataset_viewer = 0
         self.augmented_dataset_path = augDatasetpath
+        
+        valid_extensions = ('.png', '.jpg', '.jpeg', '.bmp', '.tiff')
+        
+        for root, dirs, files in os.walk(self.augmented_dataset_path):
+            for file in files:
+                if file.lower().endswith(valid_extensions):
+                    self.img_dataset_viewer.append(os.path.join(root, file))
 
+    def get_current_aug_img(self):
+        print(self.idx_img_dataset_viewer)
+        img_path = self.img_dataset_viewer[self.idx_img_dataset_viewer]
+        if os.path.exists(img_path):
+            return img_path
+        else:
+            print(f"[-] Error in backend.get_current_aug_img: {img_path} does not exist")
+            return None
+    
     def load_mask(self, num_bits=8):
         try:
             if len(self.img_list) == 0:
@@ -209,10 +230,36 @@ class Backend:
 
             if progress:
                 progress.setValue(idx + 1)
-                progress.setLabelText(f"Traitement : {currentPath.name} ({idx + 1}/{total})")
+                progress.setLabelText(f"Processing : {currentPath.name} ({idx + 1}/{total})")
 
         if progress:
             progress.setValue(total)
+
+    def next_aug_img_in_dataset(self):
+        self.idx_img_dataset_viewer+=1
+    def prev_aug_img_in_dataset(self):
+        self.idx_img_dataset_viewer -=1
+    def calculated_stats_on_image(self):
+        pixel_counts = [0.0 for i in range (self.nb_classes)]
+        
+        current_img_path = Path(self.img_dataset_viewer[self.idx_img_dataset_viewer])
+        current_label_path = os.path.join(current_img_path.parent.parent, "labels", current_img_path.stem + ".png")
+        if not os.path.exists(current_label_path):
+            print(f"[-] Error in backend.calculated_stats_on_image: {current_label_path} doesn't exist!")
+            return pixel_counts
+
+        mask_np = cv2.imread(current_label_path, cv2.IMREAD_UNCHANGED)
+        if mask_np is None:
+            return pixel_counts
+
+        for i in range(self.nb_classes):
+            class_pixels = int(np.sum((mask_np & (1 << i)) > 0))
+            pixel_counts[i] =(class_pixels)
+
+        print(pixel_counts)
+        return pixel_counts
+
+        
 
     def calculated_statistics(self):
         # This function will return the proportion of each class
