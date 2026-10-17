@@ -12,13 +12,14 @@ from PyQt6.QtGui import QIcon
 from pathlib import Path
 
 class NavigationWidget(QWidget):
-    def __init__(self, show_dataset_path = True, show_image_name = True):
+    def __init__(self, show_dataset_path = True, show_image_name = True, show_bin_icon = False):
         super().__init__()
 
         assets_dir = Path("utils")
         self.num_data = QLabel("Total: 0")
         self.show_dataset_path = show_dataset_path
         self.show_image_name = show_image_name
+        self.show_bin_icon = show_bin_icon
 
         if self.show_dataset_path:
             self.current_dataset_path = QLabel("No dataset selected")
@@ -54,7 +55,13 @@ class NavigationWidget(QWidget):
         next_icon_path = assets_dir / "next.png"
         if next_icon_path.exists():
             self.next_button.setIcon(QIcon(str(next_icon_path)))
-                   
+
+        if self.show_bin_icon:
+            self.bin_button = QPushButton()
+            bin_icon_path = assets_dir / "bin.png" 
+            if bin_icon_path.exists():
+                self.bin_button.setIcon(QIcon(str(bin_icon_path)))
+
         self.entry_index = QLineEdit("0")
 
         self.general_layout = QVBoxLayout(self)
@@ -91,6 +98,10 @@ class NavigationWidget(QWidget):
         self.bottom_layout.addSpacing(15)
 
         self.general_layout.addLayout(self.top_layout)
+
+        if self.show_bin_icon:
+            self.nav_layout.addWidget(self.bin_button)
+            
         self.nav_layout.addWidget(self.previous_button)
         self.nav_layout.addWidget(self.entry_index)
         self.nav_layout.addWidget(self.next_button)
