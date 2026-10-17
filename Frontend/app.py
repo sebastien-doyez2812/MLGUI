@@ -115,6 +115,5 @@ if __name__ == "__main__":
     else:
         print(f"Error : No QSS file at {style_path}")
     window = MainWindow(backend=backend, model= model)
-    window.show()
-    # window.showFullScreen()
+    window.showMaximized()
     sys.exit(app.exec())

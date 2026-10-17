@@ -17,7 +17,7 @@ from Frontend.Widgets.navigationWidget import NavigationWidget
 from Frontend.Widgets.folderSelector import FolderSelector
 from Frontend.Widgets.ZoomableGraphicsView import ZoomableGraphicsView
 from Frontend.Widgets.analysisWidget import AnalysisWidget
-from Frontend.roles import LOAD_AUG_DATASET, GET_STATISTICS
+from Frontend.roles import *
 import os, json, cv2
 import numpy as np
 from pathlib import Path
@@ -114,7 +114,7 @@ class DatasetViewerPage(QWidget):
         content_layout.addWidget(separator)
 
         classes_title = QLabel("Masks by Classes (Bits)")
-        classes_title.setStyleSheet("font-weight: bold; font-size: 14px; color: #007AFF;")
+        classes_title.setStyleSheet("font-weight: bold; font-size: 14px; color: #8e8e93;")
         content_layout.addWidget(classes_title)
 
         classes_grid = QGridLayout()
@@ -168,10 +168,6 @@ class DatasetViewerPage(QWidget):
         return {"frame": frame, "scene": scene, "view": view}
 
     def load_data(self, path):
-        percent_class_stat = self.model.data(self.model.index(0, 0), GET_STATISTICS)
-
-
-        # TODO: move that to the backend...
         self.dataset_path = path
         imgs_dir = os.path.join(path, "imgs")
         labels_dir = os.path.join(path, "labels")
@@ -185,29 +181,15 @@ class DatasetViewerPage(QWidget):
             with open(config_path, 'r', encoding='utf-8') as f:
                 self.class_names = json.load(f)
 
-        valid_extensions = ('.png', '.jpg', '.jpeg', '.bmp', '.tiff')
-        self.img_list = sorted([
-            os.path.join(imgs_dir, f) for f in os.listdir(imgs_dir) 
-            if f.lower().endswith(valid_extensions)
-        ])
-
-        if not self.img_list:
-            QMessageBox.warning(self, "Warning", "No image found in 'imgs'.")
-            return
-
-        self.current_idx = 0
         self.display_current_image()
-
-        print(percent_class_stat)
-
-        self.analysisGraphs.radar.update_radar(percent_class_stat)
-        self.analysisGraphs.radar.show()
+        self.update_analysis()
 
     def display_current_image(self):
-        if not self.img_list:
-            return
+        img_path = self.model.data(self.model.index(0, 0), GET_CURR_AUG_IMG)
 
-        img_path = self.img_list[self.current_idx]
+        if img_path is None:
+            return
+        
         current_path_obj = Path(img_path)
         labels_dir = os.path.join(self.dataset_path, "labels")
         label_path = os.path.join(labels_dir, current_path_obj.stem + ".png")
@@ -257,13 +239,21 @@ class DatasetViewerPage(QWidget):
         panel_dict["view"].fitInView(scene.itemsBoundingRect(), Qt.AspectRatioMode.KeepAspectRatio)
         
     def next_image(self):
-        if not self.img_list:
-            return
-        self.current_idx = (self.current_idx + 1) % len(self.img_list)
+        self.model.setData(self.model.index(0,0), None, PREV_AUG_IMG_ROLE)
         self.display_current_image()
+        self.update_analysis()
 
     def prev_image(self):
-        if not self.img_list:
-            return
-        self.current_idx = (self.current_idx - 1) % len(self.img_list)
+        self.model.setData(self.model.index(0,0), None, PREV_AUG_IMG_ROLE)
         self.display_current_image()
+        self.update_analysis()
+
+    def update_analysis(self):
+        percent_class_stat = self.model.data(self.model.index(0, 0), GET_STATISTICS)
+        stat_curr_img = self.model.data(self.model.index(0, 0), GET_CURR_STATISTICS)
+        
+        self.analysisGraphs.histogram.update_histogram(stat_curr_img)
+        self.analysisGraphs.histogram.show()
+
+        self.analysisGraphs.radar.update_radar(percent_class_stat)
+        self.analysisGraphs.radar.show()

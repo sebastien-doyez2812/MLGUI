@@ -1,5 +1,5 @@
 from PyQt6.QtCore import Qt, QAbstractTableModel, QModelIndex
-from roles import LOAD_DATA_ROLE, LOAD_CURRIMG_ROLE, NEXT_IMG_ROLE, PREVIOUS_IMG_ROLE, GET_INDEX_ROLE, GET_TOT_IMGS, LOAD_AUG_DATASET, GET_STATISTICS
+from roles import *
 
 class GUIModel(QAbstractTableModel):
     def __init__(self, backend, parent = None):
@@ -34,6 +34,13 @@ class GUIModel(QAbstractTableModel):
         
         elif(int(role) == int(GET_STATISTICS)):
             return self.backend.calculated_statistics()
+
+        elif (int(role) == int(GET_CURR_STATISTICS)):
+            return self.backend.calculated_stats_on_image()
+
+        elif (int(role) == int(GET_CURR_AUG_IMG)):
+            return self.backend.get_current_aug_img()
+        
         else:
             return
         
@@ -46,6 +53,14 @@ class GUIModel(QAbstractTableModel):
             self.backend.next_image()
             self.dataChanged.emit(index, index, [LOAD_CURRIMG_ROLE])
             return True
+        elif (int(role) == int(NEXT_AUG_IMG_ROLE)):
+            self.backend.next_aug_img_in_dataset()
+            return True
+
+        elif (int(role) == int(PREV_AUG_IMG_ROLE)):
+            self.backend.prev_aug_img_in_dataset()
+            return True
+                
         elif (int(role) == int(PREVIOUS_IMG_ROLE)):
             self.backend.previous_image() 
             self.dataChanged.emit(index, index, [LOAD_CURRIMG_ROLE])
