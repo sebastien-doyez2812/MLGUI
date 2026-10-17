@@ -13,6 +13,10 @@ class AnalysisWidget(QWidget):
         self.histogram = histogramWidget(nb_classes= self.nb_classes, parent=self)
         self.radar     = radarWidget(nb_classes= self.nb_classes, parent=self)
 
+
+        self.histogram.setMinimumHeight(500)
+        self.radar.setMinimumHeight(500)
+
         self.mainLayout = QHBoxLayout(self)
         self._init_ui()
         self.hide_graphs()

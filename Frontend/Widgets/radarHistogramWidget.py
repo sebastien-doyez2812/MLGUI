@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from PyQt6.QtWidgets import QWidget, QVBoxLayout
 import numpy as np
+import mplcursors
 
 class radarWidget(QWidget):
     def __init__(self, nb_classes=8, parent = None):
@@ -31,19 +32,21 @@ class radarWidget(QWidget):
         self.ax.set_facecolor('#1e1e1e')
 
         classes = [f"C{i}" for i in range(self.nb_classes)]
-        angles = np.linspace(0, 2 * np.pi, self.nb_classes, endpoint=False).tolist()
-        angles += angles[:0]
-
         proportions = list(proportions)
-        proportions += proportions[:0]
+        max_val = max(proportions) if proportions and max(proportions) > 0 else 100.0
+        
+        angles = np.linspace(0, 2 * np.pi, self.nb_classes, endpoint=False).tolist()
+        angles += angles[:1]
+        proportions += proportions[:1]
 
-        self.ax.plot(angles, proportions, color='#34C759', linewidth=2, linestyle='solid')
+        line,  = self.ax.plot(angles, proportions, color='#34C759', linewidth=2, linestyle='solid')
         self.ax.fill(angles, proportions, color='#34C759', alpha=0.25)
 
         tick_angles = np.linspace(0, 2 * np.pi, self.nb_classes, endpoint=False)
         self.ax.set_xticks(tick_angles)
         self.ax.set_xticklabels(classes, color='white', size=8)
-        
+
+        self.ax.set_ylim(0, max_val * 1.15)
         self.ax.set_title("Profil Global Dataset", color='white', fontsize=10, fontweight='bold', pad=15)
         self.ax.tick_params(colors='white', labelsize=8)
 
@@ -52,3 +55,17 @@ class radarWidget(QWidget):
 
         self.fig.tight_layout()
         self.canvas.draw()
+        cursor = mplcursors.cursor(line, hover=True)
+
+        @cursor.connect("add")
+        def on_add(sel):
+            index = int(round(sel.index))
+            if index >= self.nb_classes:
+                index = 0
+
+            real_proportions = proportions[:-1] if len(proportions) > self.nb_classes else proportions
+            val = real_proportions[index] if index < len(real_proportions) else sel.target[1]
+
+            sel.annotation.set_text(f"Classe {index}: {val:.2f}%")
+            sel.annotation.get_bbox_patch().set(fc="#2c2c2e", ec="#34C759", alpha=0.9)
+            sel.annotation.set_color("white")
