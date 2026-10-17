@@ -12,6 +12,7 @@ class Backend:
         self.img_list = []
         self.output_augmentation_folder = None
         self.augmented_dataset_path = None
+        self.nb_classes = 8 # TODO
 
     def setDatasetPath(self, path: str):
         self.dataset_path = path
@@ -213,3 +214,29 @@ class Backend:
         if progress:
             progress.setValue(total)
 
+    def calculated_statistics(self):
+        # This function will return the proportion of each class
+        if self.augmented_dataset_path is None:
+            return None
+        pixel_counts = [0.0 for i in range (self.nb_classes)]
+        total_pixels_dataset = 0.0
+        
+        labels_path = os.path.join(self.augmented_dataset_path, "labels")
+        for root, dirs, files in os.walk(labels_path):
+            for file in files:
+                current_label_path = os.path.join(root, file)
+                mask_np = cv2.imread(current_label_path, cv2.IMREAD_UNCHANGED)
+                if mask_np is None:
+                    continue
+                total_pixels_dataset += (mask_np.shape[0] * mask_np.shape[1])
+
+                for i in range(self.nb_classes):
+                    class_pixels = int(np.sum((mask_np & (1 << i)) > 0))
+                    pixel_counts[i] +=(class_pixels)
+        if total_pixels_dataset > 0:
+            proportions = [round(val / total_pixels_dataset * 100.0, 2) for val in pixel_counts]
+        else:
+            proportions = pixel_counts
+
+        return proportions
+        

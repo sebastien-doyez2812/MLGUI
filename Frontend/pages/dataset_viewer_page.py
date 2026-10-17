@@ -16,7 +16,8 @@ from PyQt6.QtGui import QPixmap, QImage, QPainter
 from Frontend.Widgets.navigationWidget import NavigationWidget
 from Frontend.Widgets.folderSelector import FolderSelector
 from Frontend.Widgets.ZoomableGraphicsView import ZoomableGraphicsView
-from Frontend.roles import LOAD_AUG_DATASET
+from Frontend.Widgets.analysisWidget import AnalysisWidget
+from Frontend.roles import LOAD_AUG_DATASET, GET_STATISTICS
 import os, json, cv2
 import numpy as np
 from pathlib import Path
@@ -36,7 +37,7 @@ class DatasetViewerPage(QWidget):
         self.mainLayout.setContentsMargins(20, 20, 20, 20)
         self.mainLayout.setSpacing(15)
 
-        self.navWidget = NavigationWidget(show_dataset_path= False, show_image_name= False)
+        self.navWidget = NavigationWidget(show_dataset_path= False, show_image_name= False, show_bin_icon= True)
         self.navWidget.next_button.clicked.connect(self.next_image)
         self.navWidget.previous_button.clicked.connect(self.prev_image)
 
@@ -44,7 +45,9 @@ class DatasetViewerPage(QWidget):
         self.folderExplorer.folderSelected.connect(self.onFolderSelected)
         if self.model:
             self.model.dataChanged.connect(self.onDataChanged)
-            
+
+        self.analysisGraphs = AnalysisWidget(self.nb_classes, self)
+
         self.init_ui()
 
     def connexion(self):
@@ -82,27 +85,7 @@ class DatasetViewerPage(QWidget):
 
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
-        scroll_area.setStyleSheet("""
-            QScrollArea {
-                border: none;
-                background-color: transparent;
-            }
-            QScrollBar:vertical {
-                background: #1e1e1e;
-                width: 10px;
-                margin: 0px;
-                border-radius: 5px;
-            }
-            QScrollBar::handle:vertical {
-                background: #3a3a3c;
-                min-height: 20px;
-                border-radius: 5px;
-            }
-            QScrollBar::handle:vertical:hover {
-                background: #007AFF;
-            }
-        """)
-
+        
         content_widget = QWidget()
         content_widget.setStyleSheet("background: transparent;")
         
@@ -150,8 +133,9 @@ class DatasetViewerPage(QWidget):
                 row += 1
 
         content_layout.addLayout(classes_grid)
-
+        content_layout.addWidget(self.analysisGraphs)
         scroll_area.setWidget(content_widget)
+
         self.mainLayout.addWidget(scroll_area)
     
     def create_preview_card(self, title_text, min_w=200, min_h=150):
@@ -184,6 +168,10 @@ class DatasetViewerPage(QWidget):
         return {"frame": frame, "scene": scene, "view": view}
 
     def load_data(self, path):
+        percent_class_stat = self.model.data(self.model.index(0, 0), GET_STATISTICS)
+
+
+        # TODO: move that to the backend...
         self.dataset_path = path
         imgs_dir = os.path.join(path, "imgs")
         labels_dir = os.path.join(path, "labels")
@@ -209,6 +197,11 @@ class DatasetViewerPage(QWidget):
 
         self.current_idx = 0
         self.display_current_image()
+
+        print(percent_class_stat)
+
+        self.analysisGraphs.radar.update_radar(percent_class_stat)
+        self.analysisGraphs.radar.show()
 
     def display_current_image(self):
         if not self.img_list:
