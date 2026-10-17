@@ -8,9 +8,9 @@ class histogramWidget(QWidget):
         super().__init__(parent=parent)
         self.parent = parent
         self.nb_classes = nb_classes
-        self._init_ui()
         self.fig = None
         self.ax = None
+        self._init_ui()
 
     def _init_ui(self):
         layout = QVBoxLayout(self)
@@ -25,6 +25,7 @@ class histogramWidget(QWidget):
         self.update_histogram(np.zeros(self.nb_classes))
 
     def update_histogram(self, pixel_counts):
+        print(f"in update histo: {pixel_counts}")
         assert len(pixel_counts) == self.nb_classes, "We should have len(pixel_counts) == self.nb_classes"
         
         self.ax.clear()
@@ -36,7 +37,7 @@ class histogramWidget(QWidget):
         ]
         bars = self.ax.bar(classes, pixel_counts, color=colors[:len(classes)])
         
-        self.ax.set_title("Pixels par classe (Image courante)", color='white', fontsize=10, fontweight='bold')
+        self.ax.set_title("Pixels per class (current image)", color='white', fontsize=10, fontweight='bold')
         self.ax.tick_params(colors='white', labelsize=8)
         self.ax.grid(axis='y', linestyle='--', alpha=0.2)
         for spine in self.ax.spines.values():

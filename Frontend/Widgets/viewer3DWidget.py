@@ -7,9 +7,9 @@ class Segmentation3DViewer(QOpenGLWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         
-        self.rotation_x = -30.0  # Légère inclinaison initiale pour mieux voir la grille
+        self.rotation_x = -30.0  
         self.rotation_y = 45.0
-        self.zoom = -6.0         # Reculé pour voir toute la grille
+        self.zoom = -6.0        
         
         self.last_pos = None
 
